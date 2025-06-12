@@ -24,11 +24,16 @@ export function DashboardClient() {
   const handleUploadSuccess = (data: UploadedContent | undefined) => {
     if (data) {
       setUploadedContent(prev => [data, ...prev]);
-      setSuccess(`Successfully processed ${data.title}`);
+      setSuccess(`Successfully processed ${data.title}. Redirecting to learning page...`);
       setError(null);
       
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccess(null), 5000);
+      // Store content data in localStorage for the learning page
+      localStorage.setItem(`content_${data.content_id}`, JSON.stringify(data));
+      
+      // Automatically redirect to learning page after successful upload
+      setTimeout(() => {
+        window.location.href = `/learn/${data.content_id}`;
+      }, 1500); // Short delay to show success message
     }
   };
 
@@ -92,7 +97,12 @@ export function DashboardClient() {
       
       {success && (
         <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
-          <p className="text-green-200">{success}</p>
+          <div className="flex items-center space-x-3">
+            {success.includes('Redirecting') && (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-400 border-t-transparent"></div>
+            )}
+            <p className="text-green-200">{success}</p>
+          </div>
         </div>
       )}
 
@@ -151,8 +161,9 @@ export function DashboardClient() {
                       variant="outline" 
                       size="sm"
                       className="text-white border-white/20 hover:bg-white/10"
+                      onClick={() => window.location.href = `/learn/${content.content_id}`}
                     >
-                      Analyze
+                      Learn
                     </Button>
                     <Button 
                       variant="outline" 

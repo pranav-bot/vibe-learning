@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import os
 import shutil
 from pathlib import Path
@@ -26,6 +27,9 @@ app.add_middleware(
 # Create uploads directory
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Mount static files for serving uploads
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.get("/")
 async def root():
@@ -139,6 +143,37 @@ async def get_content_info(content_id: str):
     """
     # This is a placeholder - in a real app, you'd store content metadata in a database
     return {"message": f"Content info for {content_id} - implement database storage"}
+
+@app.get("/pdf/{content_id}")
+@app.head("/pdf/{content_id}")
+async def get_pdf_file(content_id: str):
+    """
+    Serve PDF file by content ID
+    """
+    try:
+        logger.info(f"Looking for PDF with content_id: {content_id}")
+        
+        # Find the PDF file with this content ID
+        pdf_files = list(UPLOAD_DIR.glob(f"{content_id}_*.pdf"))
+        logger.info(f"Found PDF files: {[str(f) for f in pdf_files]}")
+        
+        if not pdf_files:
+            # List all files in upload directory for debugging
+            all_files = list(UPLOAD_DIR.glob("*.pdf"))
+            logger.info(f"All PDF files in upload dir: {[str(f) for f in all_files]}")
+            raise HTTPException(status_code=404, detail="PDF file not found")
+        
+        pdf_file = pdf_files[0]
+        logger.info(f"Serving PDF file: {pdf_file}")
+        
+        return FileResponse(
+            path=pdf_file,
+            media_type='application/pdf',
+            filename=pdf_file.name.split('_', 1)[1]  # Remove UUID prefix
+        )
+    except Exception as e:
+        logger.error(f"Error serving PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error serving PDF: {str(e)}")
 
 @app.delete("/content/{content_id}")
 async def delete_content(content_id: str):
