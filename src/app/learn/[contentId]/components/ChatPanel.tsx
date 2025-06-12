@@ -3,19 +3,24 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { ScrollArea } from "~/components/ui/scroll-area";
-import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, MoreHorizontal } from "lucide-react";
+import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, MoreHorizontal, Terminal } from "lucide-react";
+import { commandParser, type CommandResult } from "~/lib/command-parser";
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant';
+  type: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  commandResult?: CommandResult;
 }
 
 interface ChatPanelProps {
   contentId: string;
-  contentData: any;
+  contentData: {
+    title?: string;
+    content_type?: string;
+    // Add other expected properties
+  } | null;
 }
 
 export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
@@ -23,7 +28,7 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
     {
       id: '1',
       type: 'assistant',
-      content: `Hello! I'm your AI learning assistant. I can help you understand and analyze "${contentData?.title || 'this content'}". Feel free to ask me any questions about the material!`,
+      content: `Hello! I'm your AI learning assistant. I can help you understand and analyze "${contentData?.title ?? 'this content'}". Feel free to ask me any questions about the material!\n\n💡 **Tip**: Type \`/help\` to see available commands!`,
       timestamp: new Date()
     }
   ]);
@@ -31,6 +36,9 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Remove unused contentId parameter warning by using it
+  console.debug('ChatPanel initialized for content:', contentId);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages are added
@@ -53,15 +61,64 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageInput = inputValue.trim();
     setInputValue('');
-    setIsLoading(true);
 
-    // Simulate AI response (replace with actual API call)
+    // Check if it's a command
+    if (commandParser.isCommand(messageInput)) {
+      try {
+        const commandResult = commandParser.executeCommand(messageInput, { 
+          contentData, 
+          contentId 
+        });
+
+        // Handle special command actions
+        const commandData = commandResult.data as { action?: string } | undefined;
+        if (commandData?.action === 'clear_chat') {
+          setMessages([{
+            id: Date.now().toString(),
+            type: 'system',
+            content: commandResult.message,
+            timestamp: new Date(),
+            commandResult
+          }]);
+          return;
+        }
+
+        const commandResponseMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'system',
+          content: commandResult.message,
+          timestamp: new Date(),
+          commandResult
+        };
+
+        setMessages(prev => [...prev, commandResponseMessage]);
+      } catch (error) {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'system',
+          content: `Error executing command: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date(),
+          commandResult: {
+            success: false,
+            message: 'Command execution failed',
+            type: 'error'
+          }
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+      return;
+    }
+
+    // Regular chat message - simulate AI response
+    setIsLoading(true);
+    
     setTimeout(() => {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: generateMockResponse(userMessage.content),
+        content: generateMockResponse(),
         timestamp: new Date()
       };
       setMessages(prev => [...prev, assistantMessage]);
@@ -69,7 +126,7 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
     }, 1000 + Math.random() * 2000);
   };
 
-  const generateMockResponse = (userQuery: string): string => {
+  const generateMockResponse = (): string => {
     const responses = [
       "That's a great question! Based on the content you're studying, I can see that this relates to key concepts discussed in the material. Let me break this down for you...",
       "From my analysis of this content, here's what I found: The main points seem to focus on practical applications and theoretical foundations. Would you like me to elaborate on any specific aspect?",
@@ -77,17 +134,28 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
       "That's an interesting perspective! The content actually touches on this subject in multiple sections. Let me highlight the most relevant parts for you...",
       "Based on the material you're studying, I can provide some insights. The content suggests that understanding this concept is crucial for grasping the broader themes discussed..."
     ];
-    return responses[Math.floor(Math.random() * responses.length)];
+    const randomIndex = Math.floor(Math.random() * responses.length);
+    return responses[randomIndex] ?? "I'm here to help! Could you please rephrase your question?";
   };
 
   const copyToClipboard = (content: string) => {
-    navigator.clipboard.writeText(content);
+    void navigator.clipboard.writeText(content);
+  };
+
+  const getSystemMessageBgColor = (type?: string) => {
+    switch (type) {
+      case 'success': return 'bg-green-600/80';
+      case 'error': return 'bg-red-600/80';
+      case 'warning': return 'bg-yellow-600/80';
+      case 'info': 
+      default: return 'bg-blue-600/80';
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      void handleSendMessage();
     }
   };
 
@@ -95,7 +163,9 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
     "Can you summarize the main points?",
     "What are the key takeaways?",
     "Explain this concept in simple terms",
-    "How does this relate to real-world applications?"
+    "How does this relate to real-world applications?",
+    "/help - Show available commands",
+    "/summary - Get content summary"
   ];
 
   return (
@@ -108,13 +178,13 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
           </div>
           <div>
             <h3 className="text-white font-medium">AI Learning Assistant</h3>
-            <p className="text-xs text-gray-400">Ask questions about your content</p>
+            <p className="text-xs text-gray-400">Ask questions or use commands (type /help)</p>
           </div>
         </div>
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
+      <div className="flex-1 px-4 overflow-y-auto" ref={scrollAreaRef}>
         <div className="space-y-4 py-4">
           {messages.map((message) => (
             <div
@@ -126,10 +196,14 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
               <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${
                 message.type === 'user' 
                   ? 'bg-gradient-to-r from-blue-500 to-cyan-500' 
+                  : message.type === 'system'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500'
                   : 'bg-gradient-to-r from-purple-500 to-pink-500'
               }`}>
                 {message.type === 'user' ? (
                   <User className="h-4 w-4 text-white" />
+                ) : message.type === 'system' ? (
+                  <Terminal className="h-4 w-4 text-white" />
                 ) : (
                   <Bot className="h-4 w-4 text-white" />
                 )}
@@ -139,12 +213,14 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
                 <div className={`inline-block p-3 rounded-lg text-sm ${
                   message.type === 'user'
                     ? 'bg-blue-600 text-white'
+                    : message.type === 'system'
+                    ? `${getSystemMessageBgColor(message.commandResult?.type)} text-white`
                     : 'bg-white/10 text-white'
                 }`}>
-                  {message.content}
+                  <div className="whitespace-pre-wrap">{message.content}</div>
                 </div>
                 
-                {message.type === 'assistant' && (
+                {(message.type === 'assistant' || message.type === 'system') && (
                   <div className="flex items-center space-x-1 mt-2">
                     <Button
                       variant="ghost"
@@ -154,27 +230,31 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-                    >
-                      <ThumbsUp className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-                    >
-                      <ThumbsDown className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-                    >
-                      <MoreHorizontal className="h-3 w-3" />
-                    </Button>
+                    {message.type === 'assistant' && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-white"
+                        >
+                          <ThumbsUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-white"
+                        >
+                          <ThumbsDown className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-white"
+                        >
+                          <MoreHorizontal className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
                 
@@ -202,19 +282,22 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Suggested Questions */}
       {messages.length === 1 && (
         <div className="px-4 py-2 border-t border-white/10">
-          <p className="text-xs text-gray-400 mb-2">Suggested questions:</p>
+          <p className="text-xs text-gray-400 mb-2">Suggested questions and commands:</p>
           <div className="space-y-1">
             {suggestedQuestions.map((question, index) => (
               <Button
                 key={index}
                 variant="ghost"
                 size="sm"
-                onClick={() => setInputValue(question)}
+                onClick={() => {
+                  const commandText = question.startsWith('/') ? question.split(' - ')[0] : question;
+                  setInputValue(commandText ?? question);
+                }}
                 className="w-full text-left justify-start text-xs text-gray-300 hover:bg-white/10 h-8"
               >
                 {question}
@@ -232,12 +315,12 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask a question about this content..."
+            placeholder="Ask a question or type a command (e.g., /help)..."
             className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 text-sm"
             disabled={isLoading}
           />
           <Button
-            onClick={handleSendMessage}
+            onClick={() => void handleSendMessage()}
             disabled={!inputValue.trim() || isLoading}
             size="sm"
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
@@ -245,6 +328,11 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
             <Send className="h-4 w-4" />
           </Button>
         </div>
+        {inputValue.startsWith('/') && (
+          <div className="mt-2 text-xs text-amber-300">
+            💡 Command detected - Press Enter to execute
+          </div>
+        )}
       </div>
     </div>
   );
