@@ -69,7 +69,7 @@ export class CommandParser {
 
         return {
           success: true,
-          message: `**Available Commands:**\n${commandList}\n\nUse \`/help [command]\` for detailed usage.`,
+          message: `**🤖 Command Help**\n\n**Traditional Commands:**\n${commandList}\n\n**💬 Conversational Commands:**\nTry natural language commands like:\n• \`/solve all problems on page 28\`\n• \`/visualize biology diagrams\`\n• \`/explain photosynthesis step by step\`\n• \`/analyze trends in chapter 3\`\n• \`/goto page 15\`\n\n💡 **Tip**: Commands understand natural language and can be very specific!`,
           type: 'info'
         };
       }

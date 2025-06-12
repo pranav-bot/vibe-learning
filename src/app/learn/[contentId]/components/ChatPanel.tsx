@@ -5,13 +5,15 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, MoreHorizontal, Terminal } from "lucide-react";
 import { commandParser, type CommandResult } from "~/lib/command-parser";
+import { conversationalCommandParser, type CommandResult as ConvCommandResult, type CommandAction } from "~/lib/conversational-command-parser";
 
 interface Message {
   id: string;
   type: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  commandResult?: CommandResult;
+  commandResult?: CommandResult | ConvCommandResult;
+  actions?: CommandAction[];
 }
 
 interface ChatPanelProps {
@@ -19,16 +21,18 @@ interface ChatPanelProps {
   contentData: {
     title?: string;
     content_type?: string;
-    // Add other expected properties
+    total_pages?: number;
+    subjects?: string[];
   } | null;
+  onCommandAction?: (action: CommandAction) => void;
 }
 
-export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
+export function ChatPanel({ contentId, contentData, onCommandAction }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'assistant',
-      content: `Hello! I'm your AI learning assistant. I can help you understand and analyze "${contentData?.title ?? 'this content'}". Feel free to ask me any questions about the material!\n\n💡 **Tip**: Type \`/help\` to see available commands!`,
+      content: `Hello! I'm your AI learning assistant. I can help you understand and analyze "${contentData?.title ?? 'this content'}". Feel free to ask me any questions about the material!\n\n💡 **Try conversational commands like:**\n• \`/solve all problems on page 28\`\n• \`/visualize biology diagrams\`\n• \`/explain photosynthesis step by step\`\n• \`/help\` for more commands`,
       timestamp: new Date()
     }
   ]);
@@ -65,12 +69,25 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
     setInputValue('');
 
     // Check if it's a command
-    if (commandParser.isCommand(messageInput)) {
+    if (commandParser.isCommand(messageInput) || conversationalCommandParser.isCommand(messageInput)) {
       try {
-        const commandResult = commandParser.executeCommand(messageInput, { 
-          contentData, 
-          contentId 
-        });
+        let commandResult: CommandResult | ConvCommandResult;
+        
+        // Try conversational parser first for richer commands
+        const convParsed = conversationalCommandParser.parseConversationalCommand(messageInput);
+        if (convParsed && convParsed.confidence > 0.7) {
+          commandResult = conversationalCommandParser.executeConversationalCommand(messageInput, { 
+            contentData, 
+            contentId,
+            currentPage: 1 // You can track current page state
+          });
+        } else {
+          // Fall back to traditional command parser
+          commandResult = commandParser.executeCommand(messageInput, { 
+            contentData, 
+            contentId 
+          });
+        }
 
         // Handle special command actions
         const commandData = commandResult.data as { action?: string } | undefined;
@@ -85,12 +102,20 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
           return;
         }
 
+        // Execute command actions if available
+        if ('actions' in commandResult && commandResult.actions && onCommandAction) {
+          commandResult.actions.forEach(action => {
+            onCommandAction(action);
+          });
+        }
+
         const commandResponseMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: 'system',
           content: commandResult.message,
           timestamp: new Date(),
-          commandResult
+          commandResult,
+          actions: 'actions' in commandResult ? commandResult.actions : undefined
         };
 
         setMessages(prev => [...prev, commandResponseMessage]);
@@ -162,10 +187,12 @@ export function ChatPanel({ contentId, contentData }: ChatPanelProps) {
   const suggestedQuestions = [
     "Can you summarize the main points?",
     "What are the key takeaways?",
-    "Explain this concept in simple terms",
-    "How does this relate to real-world applications?",
-    "/help - Show available commands",
-    "/summary - Get content summary"
+    "/solve all problems on page 5",
+    "/visualize biology diagrams", 
+    "/explain photosynthesis step by step",
+    "/analyze trends in chapter 3",
+    "/goto page 15",
+    "/help - Show all commands"
   ];
 
   return (

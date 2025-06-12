@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "~/components/ui/button";
 import { ArrowLeft, MessageSquare, X } from "lucide-react";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { VideoPlayer } from "./VideoPlayer";
 import { WebsiteViewer } from "./WebsiteViewer";
 import { ChatPanel } from "./ChatPanel";
 import { type ContentType } from "~/components/ContentUploader";
+import { type CommandAction } from "~/lib/conversational-command-parser";
 
 interface ContentData {
   content_id: string;
@@ -28,14 +29,15 @@ interface LearningClientProps {
 export function LearningClient({ contentId }: LearningClientProps) {
   const [contentData, setContentData] = useState<ContentData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchContentData();
-  }, [contentId]);
+  // Remove unused contentId parameter warning by using it
+  console.debug('LearningClient initialized for content:', contentId);
 
-  const fetchContentData = async () => {
+  const fetchContentData = useCallback(async () => {
     try {
       // First check localStorage for recently uploaded content
       const storedData = localStorage.getItem(`content_${contentId}`);
@@ -78,12 +80,14 @@ export function LearningClient({ contentId }: LearningClientProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [contentId]);
 
-  // Mock data generators for demo purposes
+  useEffect(() => {
+    void fetchContentData();
+  }, [fetchContentData]);
   const getMockContentType = (id: string): ContentType => {
     const types: ContentType[] = ['pdf-file', 'pdf-link', 'youtube', 'website'];
-    return types[id.length % 4];
+    return types[id.length % 4] ?? 'pdf-file';
   };
 
   const getMockTitle = (id: string): string => {
@@ -93,7 +97,7 @@ export function LearningClient({ contentId }: LearningClientProps) {
       'YouTube Tutorial Video',
       'Educational Website Article'
     ];
-    return titles[id.length % 4];
+    return titles[id.length % 4] ?? 'Sample Document';
   };
 
   const getMockUrl = (id: string): string | undefined => {
@@ -104,6 +108,40 @@ export function LearningClient({ contentId }: LearningClientProps) {
       'https://example.com/article'
     ];
     return urls[id.length % 4];
+  };
+
+  const handleCommandAction = (action: CommandAction) => {
+    console.log('Executing command action:', action);
+    
+    switch (action.type) {
+      case 'navigate':
+        if (action.target === 'page' && action.parameters?.page) {
+          const pageNum = action.parameters.page as number;
+          setCurrentPage(pageNum);
+          setCommandFeedback(`📖 Navigated to page ${pageNum}`);
+        }
+        break;
+        
+      case 'highlight':
+        setCommandFeedback(`🎯 Highlighting ${action.target} (${JSON.stringify(action.parameters)})`);
+        break;
+        
+      case 'visualize':
+        setCommandFeedback(`📊 Creating visualizations for ${action.target}`);
+        break;
+        
+      case 'analyze':
+        setCommandFeedback(`🔬 Analyzing ${action.target} with parameters: ${JSON.stringify(action.parameters)}`);
+        break;
+        
+      case 'extract':
+        setCommandFeedback(`📋 Extracting ${action.target}`);
+        break;        default:
+          setCommandFeedback(`⚡ Executing action on ${action.target}`);
+    }
+
+    // Clear feedback after 3 seconds
+    setTimeout(() => setCommandFeedback(null), 3000);
   };
 
   const renderContentViewer = () => {
@@ -205,7 +243,22 @@ export function LearningClient({ contentId }: LearningClientProps) {
       {/* Main Content */}
       <div className="flex h-[calc(100vh-80px)]">
         {/* Content Viewer */}
-        <div className={`flex-1 ${isChatOpen ? 'mr-96' : ''} transition-all duration-300`}>
+        <div className={`flex-1 ${isChatOpen ? 'mr-96' : ''} transition-all duration-300 relative`}>
+          {/* Command Feedback */}
+          {commandFeedback && (
+            <div className="absolute top-4 right-4 z-50 bg-blue-600/90 text-white px-4 py-2 rounded-lg shadow-lg border border-blue-400/30 backdrop-blur-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">{commandFeedback}</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Current Page Indicator */}
+          <div className="absolute bottom-4 left-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm backdrop-blur-sm">
+            Page {currentPage}
+          </div>
+          
           {renderContentViewer()}
         </div>
 
@@ -214,7 +267,12 @@ export function LearningClient({ contentId }: LearningClientProps) {
           <div className="fixed right-0 top-20 bottom-0 w-96 border-l border-white/10 bg-black/40 backdrop-blur-sm">
             <ChatPanel 
               contentId={contentId}
-              contentData={contentData}
+              contentData={{
+                ...contentData,
+                total_pages: 100, // Mock total pages
+                subjects: ['biology', 'chemistry', 'physics'] // Mock subjects
+              }}
+              onCommandAction={handleCommandAction}
             />
           </div>
         )}
