@@ -11,19 +11,12 @@ import os
 import base64
 from io import BytesIO
 from PIL import Image
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 import os
-import shutil
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
-from urllib.parse import urlparse
 from datetime import datetime
-import uuid
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
