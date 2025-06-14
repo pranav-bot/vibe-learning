@@ -11,6 +11,22 @@ import os
 import base64
 from io import BytesIO
 from PIL import Image
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
+import shutil
+import json
+from pathlib import Path
+from typing import Dict, Any, Optional
+import logging
+from urllib.parse import urlparse
+from datetime import datetime
+import uuid
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 
 class PDFTextExtractor:
@@ -647,3 +663,82 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f"Standalone function demo error: {str(e)}")
+
+
+
+
+def process_pdf_file(file_path: Path, content_id: str, image_dir: Path, data_dir: Path) -> Dict[str, Any]:
+    """
+    Process PDF file and extract text and images page-wise
+    """
+    try:
+        # Initialize PDF extractor
+        extractor = PDFTextExtractor(str(file_path))
+        
+        # Get PDF info
+        pdf_info = extractor.get_pdf_info()
+        
+        # Extract content from all pages
+        all_content = extractor.extract_content_all_pages(
+            include_images=True,
+            save_images_to_disk=True,
+            output_dir=str(image_dir / content_id),
+            extraction_mode="layout"
+        )
+        
+        # Process and organize the data
+        processed_data = {
+            "content_id": content_id,
+            "pdf_info": pdf_info,
+            "total_pages": len(all_content),
+            "processed_at": datetime.now().isoformat(),
+            "pages": []
+        }
+        
+        for page_content in all_content:
+            # Safely extract page number
+            page_num = page_content.get("page_number", 0)
+            if isinstance(page_num, (int, float)):
+                page_number = int(page_num) + 1
+            else:
+                page_number = 1  # Default fallback
+            
+            page_data = {
+                "page_number": page_number,
+                "text": str(page_content.get("text", "")),
+                "text_length": len(str(page_content.get("text", ""))),
+                "images": []
+            }
+            
+            # Process images for this page
+            images_list = page_content.get("images", [])
+            if isinstance(images_list, list):
+                for img_idx, img_info in enumerate(images_list):
+                    if isinstance(img_info, dict):
+                        image_data = {
+                            "image_index": img_idx + 1,
+                            "image_name": img_info.get("name", f"image_{img_idx + 1}"),
+                            "image_format": img_info.get("format", "unknown"),
+                            "image_size": img_info.get("size", None),
+                            "image_path": img_info.get("file_path", ""),
+                            "base64_preview": (img_info.get("base64", "")[:100] + "..." 
+                                             if len(img_info.get("base64", "")) > 100 
+                                             else img_info.get("base64", ""))
+                        }
+                        page_data["images"].append(image_data)
+            
+            page_data["image_count"] = len(page_data["images"])
+            processed_data["pages"].append(page_data)
+        
+        # Save processed data as JSON
+        json_file_path = data_dir / f"{content_id}.json"
+        with open(json_file_path, 'w', encoding='utf-8') as f:
+            json.dump(processed_data, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"Processed PDF {content_id}: {len(all_content)} pages, saved to {json_file_path}")
+        
+        return processed_data
+        
+    except Exception as e:
+        logger.error(f"Error processing PDF {content_id}: {str(e)}")
+        raise e

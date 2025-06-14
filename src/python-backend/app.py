@@ -4,10 +4,16 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import os
 import shutil
+import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
 from urllib.parse import urlparse
+from datetime import datetime
+import uuid
+
+# Import our PDF parser
+from pdf_parser import process_pdf_file
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,12 +30,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create uploads directory
+# Create directories
 UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path("data")
+IMAGES_DIR = DATA_DIR / "images"
 
-# Mount static files for serving uploads
+UPLOAD_DIR.mkdir(exist_ok=True)
+DATA_DIR.mkdir(exist_ok=True)
+IMAGES_DIR.mkdir(exist_ok=True)
+
+# Mount static files for serving uploads and images
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
+
+
 
 @app.get("/")
 async def root():
@@ -88,7 +102,7 @@ async def upload_content(
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)) -> Dict[str, Any]:
     """
-    Receive PDF file upload (no processing done here)
+    Receive PDF file upload and process it to extract text and images page-wise
     """
     try:
         # Validate file type
@@ -105,44 +119,183 @@ async def upload_pdf(file: UploadFile = File(...)) -> Dict[str, Any]:
             raise HTTPException(status_code=400, detail="File size exceeds 50MB limit")
         
         # Generate unique filename
-        import uuid
         file_id = str(uuid.uuid4())
         file_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
         
-        # Save file without processing
+        # Save file
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Create response without text extraction
-        file_info = {
-            "content_id": file_id,
-            "content_type": "pdf-file", 
-            "title": file.filename,
-            "file_size": file_size,
-            "text_length": 0,
-            "text_preview": "PDF received but not processed",
-            "status": "received"
-        }
+        logger.info(f"Saved PDF file: {file_path}")
         
-        logger.info(f"Received PDF: {file.filename} (ID: {file_id})")
-        
-        return {
-            "success": True,
-            "message": "PDF received successfully",
-            "data": file_info
-        }
+        # Process the PDF file
+        try:
+            processed_data = process_pdf_file(file_path, file_id, image_dir=IMAGES_DIR, data_dir=DATA_DIR)
+            
+            # Create summary response
+            file_info = {
+                "content_id": file_id,
+                "content_type": "pdf-file", 
+                "title": file.filename,
+                "file_size": file_size,
+                "total_pages": processed_data["total_pages"],
+                "total_text_length": sum(page["text_length"] for page in processed_data["pages"]),
+                "total_images": sum(page["image_count"] for page in processed_data["pages"]),
+                "text_preview": (processed_data["pages"][0]["text"][:200] + "..." 
+                               if processed_data["pages"] and len(processed_data["pages"][0]["text"]) > 200
+                               else processed_data["pages"][0]["text"] if processed_data["pages"] else ""),
+                "status": "processed",
+                "processed_at": processed_data["processed_at"],
+                "data_file": f"data/{file_id}.json"
+            }
+            
+            logger.info(f"Successfully processed PDF: {file.filename} (ID: {file_id}) - "
+                       f"{processed_data['total_pages']} pages, "
+                       f"{sum(page['text_length'] for page in processed_data['pages'])} chars, "
+                       f"{sum(page['image_count'] for page in processed_data['pages'])} images")
+            
+            return {
+                "success": True,
+                "message": "PDF uploaded and processed successfully",
+                "data": file_info
+            }
+            
+        except Exception as processing_error:
+            logger.error(f"Error processing PDF: {str(processing_error)}")
+            # Return basic info even if processing failed
+            file_info = {
+                "content_id": file_id,
+                "content_type": "pdf-file", 
+                "title": file.filename,
+                "file_size": file_size,
+                "text_length": 0,
+                "text_preview": f"Processing failed: {str(processing_error)}",
+                "status": "processing_failed",
+                "error": str(processing_error)
+            }
+            
+            return {
+                "success": False,
+                "message": f"PDF uploaded but processing failed: {str(processing_error)}",
+                "data": file_info
+            }
         
     except Exception as e:
-        logger.error(f"Error receiving PDF: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error receiving PDF: {str(e)}")
+        logger.error(f"Error uploading PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error uploading PDF: {str(e)}")
 
 @app.get("/content/{content_id}")
 async def get_content_info(content_id: str):
     """
     Get information about uploaded content
     """
-    # This is a placeholder - in a real app, you'd store content metadata in a database
-    return {"message": f"Content info for {content_id} - implement database storage"}
+    try:
+        # Check if JSON data file exists
+        json_file_path = DATA_DIR / f"{content_id}.json"
+        if not json_file_path.exists():
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        # Load and return the processed data
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            content_data = json.load(f)
+        
+        return {
+            "success": True,
+            "data": content_data
+        }
+        
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Content not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid data file format")
+    except Exception as e:
+        logger.error(f"Error retrieving content {content_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving content: {str(e)}")
+
+@app.get("/content/{content_id}/page/{page_number}")
+async def get_page_content(content_id: str, page_number: int):
+    """
+    Get content for a specific page
+    """
+    try:
+        # Load the processed data
+        json_file_path = DATA_DIR / f"{content_id}.json"
+        if not json_file_path.exists():
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            content_data = json.load(f)
+        
+        # Find the requested page
+        page_data = None
+        for page in content_data.get("pages", []):
+            if page.get("page_number") == page_number:
+                page_data = page
+                break
+        
+        if not page_data:
+            raise HTTPException(status_code=404, detail=f"Page {page_number} not found")
+        
+        return {
+            "success": True,
+            "data": page_data
+        }
+        
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Content not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid data file format")
+    except Exception as e:
+        logger.error(f"Error retrieving page {page_number} from content {content_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving page content: {str(e)}")
+
+@app.get("/content/{content_id}/summary")
+async def get_content_summary(content_id: str):
+    """
+    Get summary information about the content
+    """
+    try:
+        # Load the processed data
+        json_file_path = DATA_DIR / f"{content_id}.json"
+        if not json_file_path.exists():
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            content_data = json.load(f)
+        
+        # Create summary
+        summary = {
+            "content_id": content_data.get("content_id"),
+            "total_pages": content_data.get("total_pages", 0),
+            "processed_at": content_data.get("processed_at"),
+            "pdf_info": content_data.get("pdf_info", {}),
+            "total_text_length": sum(page.get("text_length", 0) for page in content_data.get("pages", [])),
+            "total_images": sum(page.get("image_count", 0) for page in content_data.get("pages", [])),
+            "pages_summary": [
+                {
+                    "page_number": page.get("page_number"),
+                    "text_length": page.get("text_length", 0),
+                    "image_count": page.get("image_count", 0),
+                    "text_preview": (page.get("text", "")[:100] + "..." 
+                                   if len(page.get("text", "")) > 100 
+                                   else page.get("text", ""))
+                }
+                for page in content_data.get("pages", [])
+            ]
+        }
+        
+        return {
+            "success": True,
+            "data": summary
+        }
+        
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Content not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid data file format")
+    except Exception as e:
+        logger.error(f"Error retrieving summary for content {content_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving content summary: {str(e)}")
 
 @app.get("/pdf/{content_id}")
 @app.head("/pdf/{content_id}")
@@ -178,20 +331,41 @@ async def get_pdf_file(content_id: str):
 @app.delete("/content/{content_id}")
 async def delete_content(content_id: str):
     """
-    Delete uploaded content
+    Delete uploaded content including PDF files, JSON data, and extracted images
     """
     try:
-        # Find and delete files
-        deleted_files = 0
+        deleted_items = []
+        
+        # Delete PDF files
         for file_path in UPLOAD_DIR.glob(f"{content_id}_*"):
             file_path.unlink()
-            deleted_files += 1
+            deleted_items.append(f"PDF file: {file_path.name}")
         
-        if deleted_files == 0:
+        # Delete JSON data file
+        json_file_path = DATA_DIR / f"{content_id}.json"
+        if json_file_path.exists():
+            json_file_path.unlink()
+            deleted_items.append(f"Data file: {json_file_path.name}")
+        
+        # Delete image directory
+        image_dir_path = IMAGES_DIR / content_id
+        if image_dir_path.exists():
+            shutil.rmtree(image_dir_path)
+            deleted_items.append(f"Images directory: {image_dir_path.name}")
+        
+        if not deleted_items:
             raise HTTPException(status_code=404, detail="Content not found")
-            
-        return {"success": True, "message": "Content deleted successfully"}
+        
+        logger.info(f"Deleted content {content_id}: {deleted_items}")
+        
+        return {
+            "success": True, 
+            "message": "Content deleted successfully",
+            "deleted_items": deleted_items
+        }
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting content: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error deleting content: {str(e)}")

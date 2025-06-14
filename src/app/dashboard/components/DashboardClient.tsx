@@ -146,7 +146,7 @@ export function DashboardClient() {
                           <span>•</span>
                         </>
                       )}
-                      <span>{content.text_length.toLocaleString()} characters extracted</span>
+                      <span>{content.text_length?.toLocaleString() ?? 0} characters extracted</span>
                       <span>•</span>
                       <span className="text-green-400">{content.status}</span>
                     </div>
