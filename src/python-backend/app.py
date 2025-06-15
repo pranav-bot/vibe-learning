@@ -369,6 +369,45 @@ async def delete_content(content_id: str):
         logger.error(f"Error deleting content: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error deleting content: {str(e)}")
 
+@app.get("/content/{content_id}/topic-extractor-format")
+async def topic_extractor_content(content_id: str):
+    """
+    Get content formatted for the TypeScript topic extractor
+    """
+    try:
+        # Load the processed data
+        json_file_path = DATA_DIR / f"{content_id}.json"
+        if not json_file_path.exists():
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            content_data = json.load(f)
+        
+        # Format data for topic extractor
+        formatted_content = {
+            "total_pages": content_data.get("total_pages", 0),
+            "pages": [
+                {
+                    "page_number": page.get("page_number"),
+                    "content": page.get("text", "")
+                }
+                for page in content_data.get("pages", [])
+            ]
+        }
+        
+        return {
+            "success": True,
+            "data": formatted_content
+        }
+        
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Content not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid data file format")
+    except Exception as e:
+        logger.error(f"Error formatting content for topic extractor {content_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error formatting content: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

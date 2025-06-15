@@ -12,19 +12,26 @@ interface ContentInput {
   pages: PageData[];
 }
 
-// Define the output schema for topics with page information
-const topicSchema = z.object({
-  topic_name: z.string().describe("The name or title of the topic"),
-  topic_page_start: z.number().describe("The starting page number for this topic"),
-  topic_page_end: z.number().describe("The ending page number for this topic"),
-  topic_content: z.string().describe("The original content of the topic as it appears in the document")
-});
-
 const topicExtractor = async (content: ContentInput, model: LanguageModelV1) => {
+  console.log(`🤖 Topic Extractor: Processing ${content.total_pages} pages...`);
+  
   // Format the content for the AI prompt
   const formattedContent = content.pages
     .map(page => `Page ${page.page_number}:\n${page.content}`)
     .join('\n\n');
+
+  console.log(`📝 Total content length: ${formattedContent.length} characters`);
+  
+  // Chunk content if it's too large (limit to ~3B characters to avoid token limits)
+  const maxContentLength = 3000000000; // 3 billion characters, adjust as needed
+  let contentToProcess = formattedContent;
+  
+  if (formattedContent.length > maxContentLength) {
+    console.log(`⚠️ Content too large (${formattedContent.length} chars), truncating to ${maxContentLength} chars...`);
+    contentToProcess = formattedContent.substring(0, maxContentLength) + "\n\n[Content truncated for processing...]";
+  }
+  
+  console.log(`🧠 Sending to AI model for topic extraction...`);
 
   const response = await generateObject({
     model: model,
@@ -32,17 +39,25 @@ const topicExtractor = async (content: ContentInput, model: LanguageModelV1) => 
 1. The topic name/title
 2. The starting page number where the topic begins
 3. The ending page number where the topic ends
-4. The original content of the topic (extract the actual text content as it appears in the document, do not summarize)
+4. A summary of the topic content 
+
+Important: Keep your response concise. Provide topic summaries, not full content. 
 
 Document content:
-${formattedContent}
+${contentToProcess}
 
-Please identify topics that span across pages and provide accurate page ranges for each topic. Return the original content for each topic exactly as it appears in the document.`,
+Extract the main topics and provide concise summaries for each topic. Focus on the key themes and concepts.`,
     schema: z.object({
-      topics: z.array(topicSchema).describe("List of main topics with their page ranges and original content"),
+      topics: z.array(z.object({
+        topic_name: z.string().describe("The name or title of the topic (max 100 characters)"),
+        topic_page_start: z.number().describe("The starting page number for this topic"),
+        topic_page_end: z.number().describe("The ending page number for this topic"),
+        topic_summary: z.string().describe("A concise summary of the topic (200-500 characters)")
+      })).describe("List of main topics with their page ranges and summaries (max 10 topics)"),
     }),
   });
 
+  console.log(`🎉 Topic extraction completed successfully!`);
   return response;
 }
 

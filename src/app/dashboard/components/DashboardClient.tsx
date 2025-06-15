@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ContentUploader, type ContentType } from "~/components/ContentUploader";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
+import { api } from "~/trpc/react";
 
 interface UploadedContent {
   content_id: string;
@@ -20,20 +21,66 @@ export function DashboardClient() {
   const [uploadedContent, setUploadedContent] = useState<UploadedContent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isProcessingTopics, setIsProcessingTopics] = useState(false);
 
-  const handleUploadSuccess = (data: UploadedContent | undefined) => {
+  // TRPC mutation for topic extraction
+  const extractTopics = api.content.extractTopics.useMutation();
+
+  const handleUploadSuccess = async (data: UploadedContent | undefined) => {
     if (data) {
       setUploadedContent(prev => [data, ...prev]);
-      setSuccess(`Successfully processed ${data.title}. Redirecting to learning page...`);
+      setSuccess(`Successfully processed ${data.title}. Extracting topics...`);
       setError(null);
+      setIsProcessingTopics(true);
       
       // Store content data in localStorage for the learning page
       localStorage.setItem(`content_${data.content_id}`, JSON.stringify(data));
       
-      // Automatically redirect to learning page after successful upload
-      setTimeout(() => {
-        window.location.href = `/learn/${data.content_id}`;
-      }, 1500); // Short delay to show success message
+      try {
+        // Extract topics using the topic extractor
+        const topicsResult = await extractTopics.mutateAsync({ contentId: data.content_id });
+        
+        console.log("🎯 Topics extracted successfully:", topicsResult.data);
+        
+        // Show success message with topic count
+        const topicCount = topicsResult.data?.topics?.length || 0;
+        setSuccess(`✅ Successfully extracted ${topicCount} topics! Redirecting to learning page...`);
+        
+        // Store topics data in localStorage for the learning page
+        localStorage.setItem(`topics_${data.content_id}`, JSON.stringify(topicsResult.data));
+        
+        // Redirect to learning page after successful topic extraction
+        setTimeout(() => {
+          window.location.href = `/learn/${data.content_id}`;
+        }, 2000); // Give user time to see the success message
+        
+      } catch (error) {
+        console.error("❌ Topic extraction failed:", error);
+        
+        // Provide user-friendly error messages
+        let errorMessage = "Topic extraction failed";
+        if (error instanceof Error) {
+          if (error.message.includes("timed out")) {
+            errorMessage = "Topic extraction timed out. The document might be too large.";
+          } else if (error.message.includes("too long or complex")) {
+            errorMessage = "Document is too complex for topic extraction.";
+          } else if (error.message.includes("Python backend")) {
+            errorMessage = "Backend service is unavailable.";
+          } else {
+            errorMessage = `Topic extraction failed: ${error.message}`;
+          }
+        }
+        
+        setError(errorMessage);
+        setSuccess(`${data.title} uploaded successfully, but topic extraction failed. You can still proceed to the learning page.`);
+        
+        // Still allow redirect to learning page even if topic extraction fails
+        setTimeout(() => {
+          window.location.href = `/learn/${data.content_id}`;
+        }, 5000); // Longer delay to let user read the error
+      } finally {
+        setIsProcessingTopics(false);
+      }
     }
   };
 
@@ -98,19 +145,31 @@ export function DashboardClient() {
       {success && (
         <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
           <div className="flex items-center space-x-3">
-            {success.includes('Redirecting') && (
+            {(success.includes('Redirecting') || isProcessingTopics) && (
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-400 border-t-transparent"></div>
             )}
             <p className="text-green-200">{success}</p>
           </div>
+          {isProcessingTopics && (
+            <p className="text-green-300 text-sm mt-2">
+              🔄 Analyzing document structure and extracting topics using AI...
+            </p>
+          )}
         </div>
       )}
 
       {/* Content Uploader */}
-      <ContentUploader 
-        onUploadSuccess={handleUploadSuccess}
-        onUploadError={handleUploadError}
-      />
+      <div className={isProcessingTopics ? "opacity-50 pointer-events-none" : ""}>
+        <ContentUploader 
+          onUploadSuccess={handleUploadSuccess}
+          onUploadError={handleUploadError}
+        />
+        {isProcessingTopics && (
+          <p className="text-center text-muted-foreground text-sm mt-2">
+            Please wait while we process your document...
+          </p>
+        )}
+      </div>
 
       {/* Uploaded Content List */}
       {uploadedContent.length > 0 && (
