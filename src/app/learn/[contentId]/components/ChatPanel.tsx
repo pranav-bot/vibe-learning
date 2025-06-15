@@ -9,6 +9,18 @@ import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, MoreHorizontal, Terminal, 
 import { commandParser, type CommandResult } from "~/lib/command-parser";
 import { conversationalCommandParser, type CommandResult as ConvCommandResult, type CommandAction } from "~/lib/conversational-command-parser";
 
+// Import difficulty types
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert';
+
+interface DifficultyConfig {
+  level: DifficultyLevel;
+  label: string;
+  emoji: string;
+  description: string;
+  audience: string;
+  aiInstructions: string;
+}
+
 interface Message {
   id: string;
   type: 'user' | 'assistant' | 'system';
@@ -27,14 +39,16 @@ interface ChatPanelProps {
     subjects?: string[];
   } | null;
   onCommandAction?: (action: CommandAction) => void;
+  difficulty?: DifficultyLevel;
+  difficultyConfig?: DifficultyConfig;
 }
 
-export function ChatPanel({ contentId, contentData, onCommandAction }: ChatPanelProps) {
+export function ChatPanel({ contentId, contentData, onCommandAction, difficulty: _difficulty = 'intermediate', difficultyConfig }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'assistant',
-      content: `Hello! I'm your AI learning assistant. I can help you understand and analyze "${contentData?.title ?? 'this content'}". Feel free to ask me any questions about the material!\n\n💡 **Try conversational commands like:**\n• \`/solve all problems on page 28\`\n• \`/visualize biology diagrams\`\n• \`/explain photosynthesis step by step\`\n• \`/help\` for more commands`,
+      content: `Hello! I'm your AI learning assistant${difficultyConfig ? ` set to **${difficultyConfig.emoji} ${difficultyConfig.label}** level` : ''}. I can help you understand and analyze "${contentData?.title ?? 'this content'}". Feel free to ask me any questions about the material!\n\n💡 **Try conversational commands like:**\n• \`/solve all problems on page 28\`\n• \`/visualize biology diagrams\`\n• \`/explain photosynthesis step by step\`\n• \`/help\` for more commands`,
       timestamp: new Date()
     }
   ]);
@@ -56,6 +70,20 @@ export function ChatPanel({ contentId, contentData, onCommandAction }: ChatPanel
       }
     }
   }, [messages]);
+
+  // Watch for difficulty changes and add system message
+  useEffect(() => {
+    if (difficultyConfig && messages.length > 1) { // Only after initial message
+      const difficultyMessage: Message = {
+        id: `difficulty-${Date.now()}`,
+        type: 'system',
+        content: `🎚️ **Difficulty level changed to ${difficultyConfig.emoji} ${difficultyConfig.label}**\n\n*I'll now adjust my responses for ${difficultyConfig.audience}: ${difficultyConfig.aiInstructions}*`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, difficultyMessage]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [difficultyConfig]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;

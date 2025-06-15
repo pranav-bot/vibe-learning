@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "~/components/ui/button";
-import { ArrowLeft, MessageSquare, X } from "lucide-react";
+import { Slider } from "~/components/ui/slider";
+import { ArrowLeft, MessageSquare, X, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import ThemeToggle from "~/components/ThemeToggle";
 import { PDFViewer } from "./PDFViewer";
@@ -27,6 +28,55 @@ interface LearningClientProps {
   contentId: string;
 }
 
+// Difficulty levels configuration
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert';
+
+interface DifficultyConfig {
+  level: DifficultyLevel;
+  label: string;
+  emoji: string;
+  description: string;
+  audience: string;
+  aiInstructions: string;
+}
+
+const DIFFICULTY_LEVELS: Record<DifficultyLevel, DifficultyConfig> = {
+  beginner: {
+    level: 'beginner',
+    label: 'High School',
+    emoji: '🟢',
+    description: 'High School Level',
+    audience: 'Ages 14-18',
+    aiInstructions: 'Simplify language, basic definitions, no jargon, examples with real-world analogies'
+  },
+  intermediate: {
+    level: 'intermediate',
+    label: 'Undergrad / College',
+    emoji: '🔵',
+    description: 'College Level',
+    audience: 'B.Sc. / B.A. level',
+    aiInstructions: 'Use technical terms, light math, reference core concepts, slightly deeper problem sets'
+  },
+  advanced: {
+    level: 'advanced',
+    label: 'Graduate',
+    emoji: '🟠',
+    description: 'Graduate Level',
+    audience: 'M.Sc. / PhD coursework',
+    aiInstructions: 'Include proofs, derivations, cross-discipline connections, complex problem sets'
+  },
+  expert: {
+    level: 'expert',
+    label: 'Expert / Research',
+    emoji: '🔴',
+    description: 'Research Level',
+    audience: 'Domain professionals',
+    aiInstructions: 'Deep theory, original research papers, latest findings, very complex problem sets, model edge cases'
+  }
+};
+
+const DIFFICULTY_ORDER: DifficultyLevel[] = ['beginner', 'intermediate', 'advanced', 'expert'];
+
 export function LearningClient({ contentId }: LearningClientProps) {
   const [contentData, setContentData] = useState<ContentData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +84,7 @@ export function LearningClient({ contentId }: LearningClientProps) {
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
 
   // Remove unused contentId parameter warning by using it
   console.debug('LearningClient initialized for content:', contentId);
@@ -145,6 +196,19 @@ export function LearningClient({ contentId }: LearningClientProps) {
     setTimeout(() => setCommandFeedback(null), 3000);
   };
 
+  const handleDifficultyChange = (value: number[]) => {
+    const newDifficulty = DIFFICULTY_ORDER[value[0] ?? 0];
+    if (newDifficulty) {
+      setDifficulty(newDifficulty);
+      setCommandFeedback(`🎚️ Difficulty set to ${DIFFICULTY_LEVELS[newDifficulty].emoji} ${DIFFICULTY_LEVELS[newDifficulty].label}`);
+      setTimeout(() => setCommandFeedback(null), 3000);
+    }
+  };
+
+  const getCurrentDifficultyIndex = () => {
+    return DIFFICULTY_ORDER.indexOf(difficulty);
+  };
+
   const renderContentViewer = () => {
     if (!contentData) return null;
 
@@ -219,7 +283,42 @@ export function LearningClient({ contentId }: LearningClientProps) {
                 {contentData?.title ?? 'Learning Session'}
               </h1>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-6">
+              {/* Difficulty Slider */}
+              <div className="flex items-center space-x-4 bg-muted/50 rounded-lg px-4 py-3 border border-border/50">
+                <GraduationCap className="h-5 w-5 text-muted-foreground" />
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center justify-between min-w-[280px]">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Difficulty Level
+                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg" role="img" aria-label="difficulty emoji">
+                        {DIFFICULTY_LEVELS[difficulty].emoji}
+                      </span>
+                      <span className="text-sm font-semibold text-foreground">
+                        {DIFFICULTY_LEVELS[difficulty].label}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xs text-muted-foreground w-16 text-center">🟢 HS</span>
+                    <Slider
+                      value={[getCurrentDifficultyIndex()]}
+                      onValueChange={handleDifficultyChange}
+                      max={3}
+                      min={0}
+                      step={1}
+                      className="flex-1 min-w-[160px]"
+                    />
+                    <span className="text-xs text-muted-foreground w-16 text-center">🔴 PhD+</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground text-center">
+                    {DIFFICULTY_LEVELS[difficulty].audience}
+                  </div>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-border"></div>
               <ThemeToggle />
               <Button
                 variant="ghost"
@@ -277,6 +376,8 @@ export function LearningClient({ contentId }: LearningClientProps) {
                 subjects: ['biology', 'chemistry', 'physics'] // Mock subjects
               }}
               onCommandAction={handleCommandAction}
+              difficulty={difficulty}
+              difficultyConfig={DIFFICULTY_LEVELS[difficulty]}
             />
           </div>
         )}
