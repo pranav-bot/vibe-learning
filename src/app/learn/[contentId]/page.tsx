@@ -21,5 +21,9 @@ export default async function LearnPage({ params }: PageProps) {
 
   const { contentId } = await params;
 
-  return <LearningClient contentId={contentId} />;
+  return (
+    <div className="min-h-screen bg-background">
+      <LearningClient contentId={contentId} />
+    </div>
+  );
 }

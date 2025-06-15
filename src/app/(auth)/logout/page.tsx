@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
+import ThemeToggle from "~/components/ThemeToggle";
 
 const LogoutPage = () => {
     const router = useRouter();
@@ -34,7 +35,10 @@ const LogoutPage = () => {
     };
 
     return (
-        <div className="flex h-svh items-center justify-center bg-background">
+        <div className="flex h-svh items-center justify-center bg-background relative">
+            <div className="absolute top-4 right-4">
+                <ThemeToggle />
+            </div>
             <Card className="w-full max-w-md mx-4">
                 <CardContent className="flex flex-col items-center space-y-6 p-8">
                     {/* Checkmark Icon */}

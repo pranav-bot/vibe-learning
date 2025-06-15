@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "~/components/ui/button";
 import { ArrowLeft, MessageSquare, X } from "lucide-react";
 import Link from "next/link";
+import ThemeToggle from "~/components/ThemeToggle";
 import { PDFViewer } from "./PDFViewer";
 import { VideoPlayer } from "./VideoPlayer";
 import { WebsiteViewer } from "./WebsiteViewer";
@@ -201,41 +202,44 @@ export function LearningClient({ contentId }: LearningClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
+      <div className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+                <Button variant="ghost" size="sm" className="text-foreground hover:bg-accent">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Dashboard
                 </Button>
               </Link>
-              <div className="h-6 w-px bg-white/20"></div>
-              <h1 className="text-xl font-semibold text-white">
+              <div className="h-6 w-px bg-border"></div>
+              <h1 className="text-xl font-semibold text-foreground">
                 {contentData?.title ?? 'Learning Session'}
               </h1>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsChatOpen(!isChatOpen)}
-              className="text-white hover:bg-white/10"
-            >
-              {isChatOpen ? (
-                <>
-                  <X className="h-4 w-4 mr-2" />
-                  Hide Chat
-                </>
-              ) : (
-                <>
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Show Chat
-                </>
-              )}
-            </Button>
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className="text-foreground hover:bg-accent"
+              >
+                {isChatOpen ? (
+                  <>
+                    <X className="h-4 w-4 mr-2" />
+                    Hide Chat
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Show Chat
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -246,16 +250,16 @@ export function LearningClient({ contentId }: LearningClientProps) {
         <div className={`flex-1 ${isChatOpen ? 'mr-96' : ''} transition-all duration-300 relative`}>
           {/* Command Feedback */}
           {commandFeedback && (
-            <div className="absolute top-4 right-4 z-50 bg-blue-600/90 text-white px-4 py-2 rounded-lg shadow-lg border border-blue-400/30 backdrop-blur-sm">
+            <div className="absolute top-4 right-4 z-50 bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg shadow-lg border border-primary/30 backdrop-blur-sm">
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-primary-foreground/70 rounded-full animate-pulse"></div>
                 <span className="text-sm font-medium">{commandFeedback}</span>
               </div>
             </div>
           )}
           
           {/* Current Page Indicator */}
-          <div className="absolute bottom-4 left-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm backdrop-blur-sm">
+          <div className="absolute bottom-4 left-4 bg-card/60 text-card-foreground px-3 py-1 rounded-full text-sm backdrop-blur-sm border border-border">
             Page {currentPage}
           </div>
           
@@ -264,7 +268,7 @@ export function LearningClient({ contentId }: LearningClientProps) {
 
         {/* Chat Panel */}
         {isChatOpen && (
-          <div className="fixed right-0 top-20 bottom-0 w-96 border-l border-white/10 bg-black/40 backdrop-blur-sm">
+          <div className="fixed right-0 top-20 bottom-0 w-96 border-l border-border bg-card/40 backdrop-blur-sm">
             <ChatPanel 
               contentId={contentId}
               contentData={{
