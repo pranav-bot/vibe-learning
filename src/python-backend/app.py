@@ -163,13 +163,37 @@ async def upload_pdf(file: UploadFile = File(...)) -> Dict[str, Any]:
             # Handle character limit exceeded error specifically
             logger.warning(f"Character limit exceeded for PDF: {file.filename} - {str(char_limit_error)}")
             
-            # Clean up the uploaded file since we can't process it
+            # Clean up all files related to this content ID
+            cleanup_items = []
+            
+            # Clean up the uploaded PDF file
             try:
                 if file_path.exists():
                     file_path.unlink()
-                    logger.info(f"Cleaned up uploaded file: {file_path}")
+                    cleanup_items.append(f"PDF file: {file_path.name}")
             except Exception as cleanup_error:
-                logger.error(f"Failed to clean up file {file_path}: {str(cleanup_error)}")
+                logger.error(f"Failed to clean up PDF file {file_path}: {str(cleanup_error)}")
+            
+            # Clean up JSON data file if it exists
+            try:
+                json_file_path = DATA_DIR / f"{file_id}.json"
+                if json_file_path.exists():
+                    json_file_path.unlink()
+                    cleanup_items.append(f"Data file: {json_file_path.name}")
+            except Exception as cleanup_error:
+                logger.error(f"Failed to clean up JSON file: {str(cleanup_error)}")
+            
+            # Clean up extracted images directory if it exists
+            try:
+                image_dir_path = IMAGES_DIR / file_id
+                if image_dir_path.exists():
+                    shutil.rmtree(image_dir_path)
+                    cleanup_items.append(f"Images directory: {image_dir_path.name}")
+            except Exception as cleanup_error:
+                logger.error(f"Failed to clean up images directory: {str(cleanup_error)}")
+            
+            if cleanup_items:
+                logger.info(f"Cleaned up files due to character limit: {cleanup_items}")
             
             # Return a user-friendly error message
             raise HTTPException(
