@@ -39,9 +39,7 @@ const topicExtractor = async (content: ContentInput, model: LanguageModelV1) => 
 1. The topic name/title
 2. The starting page number where the topic begins
 3. The ending page number where the topic ends
-4. A summary of the topic content 
-
-Important: Keep your response concise. Provide topic summaries, not full content. 
+4. A detailed summary of the topic content 
 
 Document content:
 ${contentToProcess}
@@ -49,11 +47,11 @@ ${contentToProcess}
 Extract the main topics and provide concise summaries for each topic. Focus on the key themes and concepts.`,
     schema: z.object({
       topics: z.array(z.object({
-        topic_name: z.string().describe("The name or title of the topic (max 100 characters)"),
+        topic_name: z.string().describe("The name or title of the topic"),
         topic_page_start: z.number().describe("The starting page number for this topic"),
         topic_page_end: z.number().describe("The ending page number for this topic"),
-        topic_summary: z.string().describe("A concise summary of the topic (200-500 characters)")
-      })).describe("List of main topics with their page ranges and summaries (max 10 topics)"),
+        topic_summary: z.string().describe("A detailed summary of the topic")
+      })).describe("List of main topics with their page ranges and summaries "),
     }),
   });
 
