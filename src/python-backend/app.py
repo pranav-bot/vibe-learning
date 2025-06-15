@@ -159,6 +159,24 @@ async def upload_pdf(file: UploadFile = File(...)) -> Dict[str, Any]:
                 "data": file_info
             }
             
+        except ValueError as char_limit_error:
+            # Handle character limit exceeded error specifically
+            logger.warning(f"Character limit exceeded for PDF: {file.filename} - {str(char_limit_error)}")
+            
+            # Clean up the uploaded file since we can't process it
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                    logger.info(f"Cleaned up uploaded file: {file_path}")
+            except Exception as cleanup_error:
+                logger.error(f"Failed to clean up file {file_path}: {str(cleanup_error)}")
+            
+            # Return a user-friendly error message
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Document too large: {str(char_limit_error)}"
+            )
+            
         except Exception as processing_error:
             logger.error(f"Error processing PDF: {str(processing_error)}")
             # Return basic info even if processing failed

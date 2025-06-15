@@ -119,14 +119,22 @@ export function ContentUploader({ onUploadSuccess, onUploadError }: ContentUploa
             try {
               const response = JSON.parse(xhr.responseText);
               resolve(response);
-            } catch (e) {
+            } catch {
               reject(new Error('Invalid response format'));
             }
           } else {
             try {
-              const errorResponse = JSON.parse(xhr.responseText);
-              reject(new Error(errorResponse.detail || 'Upload failed'));
-            } catch (e) {
+              const errorResponse = JSON.parse(xhr.responseText) as { detail?: string };
+              let errorMessage: string = errorResponse.detail ?? 'Upload failed';
+              
+              // Handle character limit error specifically
+              if (typeof errorMessage === 'string' && 
+                  (errorMessage.includes('character limit') || errorMessage.includes('100,000'))) {
+                errorMessage = 'Document too large: Character limit exceeded (100,000 characters). Please use a smaller document.';
+              }
+              
+              reject(new Error(errorMessage));
+            } catch {
               reject(new Error(`Upload failed with status ${xhr.status}`));
             }
           }
@@ -155,8 +163,12 @@ export function ContentUploader({ onUploadSuccess, onUploadError }: ContentUploa
       }
 
     } catch (error) {
-      console.error('Upload error:', error);
-      onUploadError?.(error instanceof Error ? error.message : 'Upload failed');
+      // Don't log character limit errors to console as they're expected user errors
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      if (!errorMessage.includes('character limit') && !errorMessage.includes('100,000')) {
+        console.error('Upload error:', error);
+      }
+      onUploadError?.(errorMessage);
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -166,7 +178,7 @@ export function ContentUploader({ onUploadSuccess, onUploadError }: ContentUploa
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      handleFileUpload(file);
+      void handleFileUpload(file);
     }
   };
 
@@ -176,7 +188,7 @@ export function ContentUploader({ onUploadSuccess, onUploadError }: ContentUploa
     
     const file = event.dataTransfer.files[0];
     if (file) {
-      handleFileUpload(file);
+      void handleFileUpload(file);
     }
   };
 
@@ -401,7 +413,7 @@ export function ContentUploader({ onUploadSuccess, onUploadError }: ContentUploa
         <div className="mt-6 p-4 bg-white/5 rounded-lg">
           <h4 className="text-white font-medium mb-2">Supported content types:</h4>
           <ul className="text-gray-300 text-sm space-y-1">
-            <li>• PDF files (up to 50MB) and PDF links</li>
+            <li>• PDF files (up to 50MB, max 100,000 characters) and PDF links</li>
             <li>• YouTube videos (transcript extraction)</li>
             <li>• Websites and articles (content extraction)</li>
             <li>• All content is processed with AI for learning</li>

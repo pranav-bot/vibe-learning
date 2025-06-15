@@ -679,6 +679,14 @@ def process_pdf_file(file_path: Path, content_id: str, image_dir: Path, data_dir
             extraction_mode="layout"
         )
         
+        # Check total character count to avoid quota limits
+        total_characters = sum(len(str(page_content.get("text", ""))) for page_content in all_content)
+        if total_characters > 100000:  # 100k character limit
+            logger.warning(f"Document {content_id} exceeds character limit: {total_characters:,} characters")
+            raise ValueError(f"Document exceeds 100,000 character limit ({total_characters:,} characters). Please use a smaller document.")
+        
+        logger.info(f"Document {content_id} character count: {total_characters:,} characters (within limit)")
+        
         # Process and organize the data
         processed_data = {
             "content_id": content_id,
