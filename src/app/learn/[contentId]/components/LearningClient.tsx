@@ -85,6 +85,8 @@ export function LearningClient({ contentId }: LearningClientProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
+  const [availableTopics, setAvailableTopics] = useState<{ topics: { topic_name: string; topic_page_start: number; topic_page_end: number; topic_summary: string; }[] } | null>(null);
+  const [topicsLoading, setTopicsLoading] = useState(false);
 
   // Remove unused contentId parameter warning by using it
   console.debug('LearningClient initialized for content:', contentId);
@@ -241,6 +243,122 @@ export function LearningClient({ contentId }: LearningClientProps) {
     }
   };
 
+  const fetchAvailableTopics = useCallback(async () => {
+    if (!contentData) return;
+    
+    try {
+      setTopicsLoading(true);
+      console.log('🔍 Checking for topics for content:', contentId);
+      
+      // First, check localStorage for previously extracted topics
+      const storedTopics = localStorage.getItem(`topics_${contentId}`);
+      if (storedTopics) {
+        try {
+          const parsedTopics = JSON.parse(storedTopics) as { topics: Array<{ topic_name: string; topic_page_start: number; topic_page_end: number; topic_summary: string; }> };
+          setAvailableTopics(parsedTopics);
+          console.log('✅ Topics loaded from localStorage:', parsedTopics.topics.length, 'topics');
+          return;
+        } catch {
+          console.warn('❌ Failed to parse stored topics, fetching fresh ones');
+        }
+      }
+      
+      // If no stored topics, call the API
+      console.log('📡 No stored topics found, calling extractTopics API...');
+      const response = await fetch('/api/trpc/content.extractTopics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          json: {
+            contentId: contentId
+          }
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json() as { result: { data: { success: boolean; data: { topics: Array<{ topic_name: string; topic_page_start: number; topic_page_end: number; topic_summary: string; }> } } } };
+        
+        if (result.result.data.success) {
+          const topicsData = result.result.data.data;
+          setAvailableTopics(topicsData);
+          
+          // Store the topics in localStorage for future use
+          localStorage.setItem(`topics_${contentId}`, JSON.stringify(topicsData));
+          
+          console.log('✅ Topics fetched from API and cached:', topicsData.topics.length, 'topics');
+        } else {
+          console.warn('❌ Failed to extract topics');
+          setAvailableTopics({ topics: [] });
+        }
+      } else {
+        console.warn('❌ Failed to fetch topics:', response.status);
+        // Provide some mock topics for testing if API fails
+        const mockTopics = {
+          topics: [
+            {
+              topic_name: "artificial intelligence",
+              topic_page_start: 1,
+              topic_page_end: 5,
+              topic_summary: "Introduction to artificial intelligence concepts and applications"
+            },
+            {
+              topic_name: "machine learning",
+              topic_page_start: 6,
+              topic_page_end: 12,
+              topic_summary: "Fundamentals of machine learning algorithms and techniques"
+            },
+            {
+              topic_name: "neural networks",
+              topic_page_start: 13,
+              topic_page_end: 18,
+              topic_summary: "Deep dive into neural network architectures and training"
+            }
+          ]
+        };
+        setAvailableTopics(mockTopics);
+        console.log('🔄 Using mock topics for testing:', mockTopics.topics.length, 'topics');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching topics:', error);
+      // Provide some mock topics for testing if everything fails
+      const mockTopics = {
+        topics: [
+          {
+            topic_name: "artificial intelligence",
+            topic_page_start: 1,
+            topic_page_end: 5,
+            topic_summary: "Introduction to artificial intelligence concepts and applications"
+          },
+          {
+            topic_name: "machine learning",
+            topic_page_start: 6,
+            topic_page_end: 12,
+            topic_summary: "Fundamentals of machine learning algorithms and techniques"
+          },
+          {
+            topic_name: "neural networks",
+            topic_page_start: 13,
+            topic_page_end: 18,
+            topic_summary: "Deep dive into neural network architectures and training"
+          }
+        ]
+      };
+      setAvailableTopics(mockTopics);
+      console.log('🔄 Using mock topics due to error:', mockTopics.topics.length, 'topics');
+    } finally {
+      setTopicsLoading(false);
+    }
+  }, [contentId, contentData]);
+
+  // Fetch topics when content data is available
+  useEffect(() => {
+    if (contentData && !availableTopics && !topicsLoading) {
+      void fetchAvailableTopics();
+    }
+  }, [contentData, availableTopics, topicsLoading, fetchAvailableTopics]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
@@ -378,6 +496,7 @@ export function LearningClient({ contentId }: LearningClientProps) {
               onCommandAction={handleCommandAction}
               difficulty={difficulty}
               difficultyConfig={DIFFICULTY_LEVELS[difficulty]}
+              availableTopics={availableTopics ?? undefined}
             />
           </div>
         )}

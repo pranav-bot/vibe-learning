@@ -1,13 +1,26 @@
 // Enhanced Conversational Command Parser
 // Supports both traditional CLI commands and natural language commands
 // Examples: "/solve all problems on page 28" or "/visualize biology diagrams"
+// Now supports topic references with @<topic> syntax
+
+// Topic data structure
+export interface TopicData {
+  topic_name: string;
+  topic_page_start: number;
+  topic_page_end: number;
+  topic_summary: string;
+}
+
+export interface ExtractedTopics {
+  topics: TopicData[];
+}
 
 export interface ConversationalCommand {
   name: string;
   description: string;
   patterns: RegExp[];
   examples: string[];
-  execute: (parsed: ParsedConversationalCommand, context?: CommandContext) => CommandResult;
+  execute: (parsed: ParsedConversationalCommand, context?: CommandContext) => CommandResult | Promise<CommandResult>;
 }
 
 export interface ParsedConversationalCommand {
@@ -16,6 +29,8 @@ export interface ParsedConversationalCommand {
   target?: string;
   modifiers?: string[];
   location?: string;
+  topicReference?: string; // New: referenced topic name
+  referencedTopic?: TopicData; // New: actual topic data
   originalText: string;
   confidence: number;
 }
@@ -58,6 +73,7 @@ export interface CommandContext {
   currentPage?: number;
   previousCommandResult?: unknown;
   previousCommandType?: string;
+  availableTopics?: ExtractedTopics; // New: available topics for referencing
 }
 
 export class ConversationalCommandParser {
@@ -67,6 +83,48 @@ export class ConversationalCommandParser {
   constructor() {
     this.registerConversationalCommands();
     this.initializeNLPPatterns();
+  }
+
+  // Extract topic reference from command input
+  private extractTopicReference(input: string): { cleanInput: string; topicReference?: string } {
+    // Updated regex to include hyphens, underscores, and other common characters in topic names
+    // Match @<topic_name> where topic_name can contain word characters, hyphens, underscores
+    const topicRegex = /@([\w-]+(?:\s+[\w-]+)*)/g;
+    const matches = input.match(topicRegex);
+    
+    if (matches && matches.length > 0) {
+      // For now, take the first topic reference (could be extended to handle multiple)
+      const topicReference = matches[0]?.replace('@', '').trim();
+      // Remove the topic reference from the input but keep proper spacing
+      const cleanInput = input.replace(topicRegex, '').replace(/\s+/g, ' ').trim();
+      
+      return {
+        cleanInput,
+        topicReference
+      };
+    }
+    
+    return { cleanInput: input };
+  }
+
+  // Find topic data by name (fuzzy matching)
+  private findTopicByName(topicName: string, availableTopics?: ExtractedTopics): TopicData | undefined {
+    if (!availableTopics?.topics) return undefined;
+    
+    const normalizedSearchName = topicName.toLowerCase().trim();
+    
+    // First try exact match
+    let foundTopic = availableTopics.topics.find(topic => 
+      topic.topic_name.toLowerCase() === normalizedSearchName
+    );
+    
+    // If no exact match, try partial match
+    foundTopic ??= availableTopics.topics.find(topic => 
+      topic.topic_name.toLowerCase().includes(normalizedSearchName) ||
+      normalizedSearchName.includes(topic.topic_name.toLowerCase())
+    );
+    
+    return foundTopic;
   }
 
   private registerConversationalCommands() {
@@ -82,10 +140,17 @@ export class ConversationalCommandParser {
       examples: [
         '/solve all problems on page 28',
         '/solve exercises from page 15-20',
-        '/solve quadratic equations',
+        '/solve quadratic equations @algebra',
+        '/solve @physics problems',
         '/solve this differential equation'
       ],
       execute: (parsed, context) => {
+        // Handle topic reference if present
+        if (parsed.referencedTopic) {
+          console.log(`🎯 Solving problems with topic context:`, parsed.referencedTopic);
+          console.log(`📖 Topic: ${parsed.referencedTopic.topic_name} (Pages ${parsed.referencedTopic.topic_page_start}-${parsed.referencedTopic.topic_page_end})`);
+        }
+        
         if (context?.previousCommandResult) {
           console.log(`output of ${context.previousCommandType} command`, context.previousCommandResult, `passed to output of solve command`, { parsed, context });
         } else {
@@ -96,13 +161,14 @@ export class ConversationalCommandParser {
         const solveData = {
           command: 'solve',
           target: parsed.target,
-          solutions: [`Solution for: ${parsed.target}`],
+          topicContext: parsed.referencedTopic,
+          solutions: [`Solution for: ${parsed.target}${parsed.referencedTopic ? ` (Topic: ${parsed.referencedTopic.topic_name})` : ''}`],
           context: context?.previousCommandResult ? 'Used previous command result' : 'Fresh execution'
         };
         
         return {
           success: true,
-          message: `🧮 **Solve command executed** - Check console for details`,
+          message: `🧮 **Solve command executed**${parsed.referencedTopic ? ` with topic "${parsed.referencedTopic.topic_name}"` : ''} - Check console for details`,
           data: solveData,
           type: 'info'
         };
@@ -121,10 +187,17 @@ export class ConversationalCommandParser {
       examples: [
         '/visualize all biology diagrams',
         '/visualize molecular structures from page 45',
-        '/visualize data trends',
+        '/visualize @chemistry concepts',
+        '/visualize data trends @statistics',
         '/visualize this concept map'
       ],
       execute: (parsed, context) => {
+        // Handle topic reference if present
+        if (parsed.referencedTopic) {
+          console.log(`🎯 Visualizing with topic context:`, parsed.referencedTopic);
+          console.log(`📖 Topic: ${parsed.referencedTopic.topic_name} (Pages ${parsed.referencedTopic.topic_page_start}-${parsed.referencedTopic.topic_page_end})`);
+        }
+        
         if (context?.previousCommandResult) {
           console.log(`output of ${context.previousCommandType} command`, context.previousCommandResult, `passed to output of visualize command`, { parsed, context });
         } else {
@@ -135,13 +208,14 @@ export class ConversationalCommandParser {
         const visualizeData = {
           command: 'visualize',
           target: parsed.target,
-          visualizations: [`Visualization of: ${parsed.target}`],
+          topicContext: parsed.referencedTopic,
+          visualizations: [`Visualization of: ${parsed.target}${parsed.referencedTopic ? ` (Topic: ${parsed.referencedTopic.topic_name})` : ''}`],
           context: context?.previousCommandResult ? 'Enhanced with previous results' : 'Fresh visualization'
         };
         
         return {
           success: true,
-          message: `📊 **Visualize command executed** - Check console for details`,
+          message: `📊 **Visualize command executed**${parsed.referencedTopic ? ` with topic "${parsed.referencedTopic.topic_name}"` : ''} - Check console for details`,
           data: visualizeData,
           type: 'info'
         };
@@ -155,38 +229,149 @@ export class ConversationalCommandParser {
       patterns: [
         /^\/explain\s+(.*?)\s+(?:on\s+|from\s+)?(?:page\s+)?(\d+)/i,
         /^\/explain\s+(step\s+by\s+step\s+)?(.*)/i,
-        /^\/explain\s+(.*)/i
+        /^\/explain\s+(.+)/i,  // More flexible - require at least one character
+        /^\/explain$/i         // Handle case with no arguments
       ],
       examples: [
         '/explain photosynthesis on page 67',
         '/explain step by step this process',
-        '/explain quantum mechanics',
+        '/explain @biology in terms of recent ai development',
+        '/explain @physics concepts',
+        '/explain use cases of agents',
+        '/explain quantum mechanics @physics',
         '/explain the highlighted section',
         '/analyze patterns and /explain their significance'
       ],
-      execute: (parsed, context) => {
-        if (context?.previousCommandResult) {
-          console.log(`output of ${context.previousCommandType} command`, context.previousCommandResult, `passed to output of explain command`, { parsed, context });
+      execute: async (parsed, context) => {
+        // Handle topic reference if present
+        if (parsed.referencedTopic) {
+          console.log(`🎯 Explaining with topic context:`, parsed.referencedTopic);
+          console.log(`📖 Topic: ${parsed.referencedTopic.topic_name} (Pages ${parsed.referencedTopic.topic_page_start}-${parsed.referencedTopic.topic_page_end})`);
+          
+          try {
+            // Call the explain API with topic context
+            const response = await fetch('/api/trpc/content.explainContent', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                json: {
+                  contentId: context?.contentId,
+                  userQuery: parsed.target ?? '',
+                  difficulty: 'intermediate', // Could be made configurable
+                  topic: parsed.referencedTopic
+                }
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error(`API call failed: ${response.status}`);
+            }
+
+            const result = await response.json() as {
+              result?: {
+                data?: {
+                  json?: {
+                    success?: boolean;
+                    data?: { explanation?: string };
+                  };
+                };
+              };
+            };
+            
+            // Handle the TRPC response structure correctly
+            const apiResponse = result.result?.data?.json;
+            
+            if (apiResponse?.success && apiResponse.data?.explanation) {
+              return {
+                success: true,
+                message: `💡 **Explanation Generated**\n\n${apiResponse.data.explanation}`,
+                data: {
+                  command: 'explain',
+                  target: parsed.target,
+                  topicContext: parsed.referencedTopic,
+                  explanation: apiResponse.data.explanation
+                },
+                type: 'success'
+              };
+            } else {
+              console.error('API response structure:', result);
+              throw new Error('API returned unsuccessful result or missing explanation');
+            }
+          } catch (error) {
+            console.error('Error calling explain API:', error);
+            return {
+              success: false,
+              message: `❌ **Failed to generate explanation**: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              type: 'error'
+            };
+          }
         } else {
-          console.log('output of explain command', { parsed, context });
+          // No topic reference - use current page number
+          const currentPage = context?.currentPage ?? 1;
+          console.log(`📄 Explaining with page context: Page ${currentPage}`);
+          
+          try {
+            // Call the explain API with page context
+            const response = await fetch('/api/trpc/content.explainContent', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                json: {
+                  contentId: context?.contentId,
+                  userQuery: parsed.target ?? '',
+                  difficulty: 'intermediate', // Could be made configurable
+                  pageNumber: currentPage
+                }
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error(`API call failed: ${response.status}`);
+            }
+
+            const result = await response.json() as {
+              result?: {
+                data?: {
+                  json?: {
+                    success?: boolean;
+                    data?: { explanation?: string };
+                  };
+                };
+              };
+            };
+            
+            // Handle the TRPC response structure correctly
+            const apiResponse = result.result?.data?.json;
+            
+            if (apiResponse?.success && apiResponse.data?.explanation) {
+              return {
+                success: true,
+                message: `💡 **Explanation Generated** (Page ${currentPage})\n\n${apiResponse.data.explanation}`,
+                data: {
+                  command: 'explain',
+                  target: parsed.target,
+                  pageContext: currentPage,
+                  explanation: apiResponse.data.explanation
+                },
+                type: 'success'
+              };
+            } else {
+              console.error('API response structure:', result);
+              throw new Error('API returned unsuccessful result or missing explanation');
+            }
+          } catch (error) {
+            console.error('Error calling explain API:', error);
+            return {
+              success: false,
+              message: `❌ **Failed to generate explanation**: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              type: 'error'
+            };
+          }
         }
-        
-        // Generate mock data for chaining, enhanced if previous command data exists
-        const explainData = {
-          command: 'explain',
-          target: parsed.target,
-          explanations: [`Explanation of: ${parsed.target}`],
-          basedOn: context?.previousCommandResult ? 
-            `Enhanced explanation based on ${context.previousCommandType} results` : 
-            'Independent explanation'
-        };
-        
-        return {
-          success: true,
-          message: `💡 **Explain command executed** - Check console for details`,
-          data: explainData,
-          type: 'info'
-        };
       }
     });
 
@@ -364,34 +549,58 @@ export class ConversationalCommandParser {
     return modifiers;
   }
 
-  parseConversationalCommand(input: string): ParsedConversationalCommand | null {
+  parseConversationalCommand(input: string, context?: CommandContext): ParsedConversationalCommand | null {
     if (!input.startsWith('/')) {
       return null;
     }
 
-    // Try to match against registered command patterns
+    // Extract topic reference first
+    const { cleanInput, topicReference } = this.extractTopicReference(input);
+    
+    // Find the referenced topic if available
+    let referencedTopic: TopicData | undefined;
+    if (topicReference && context?.availableTopics) {
+      referencedTopic = this.findTopicByName(topicReference, context.availableTopics);
+      if (!referencedTopic) {
+        console.warn(`Topic "${topicReference}" not found in available topics`);
+      }
+    }
+
+    // Try to match against registered command patterns using clean input
     for (const [commandName, command] of this.commands) {
       for (const pattern of command.patterns) {
-        const match = input.match(pattern);
+        const match = cleanInput.match(pattern);
         if (match) {
           const parsed: ParsedConversationalCommand = {
             command: commandName,
             originalText: input,
-            confidence: 0.9
+            topicReference,
+            referencedTopic,
+            confidence: referencedTopic ? 0.95 : 0.9  // Higher confidence when topic is found
           };
 
-          // Extract common elements based on the pattern
-          if (match.length > 1) {
-            parsed.action = match[1]?.trim();
-          }
-          if (match.length > 2) {
-            parsed.target = match[2]?.trim();
-          }
-          if (match.length > 3) {
-            parsed.location = match[3]?.trim();
+          // Special handling for explain command when topic reference is present
+          if (commandName === 'explain' && topicReference) {
+            // For explain commands with topic references, treat the remaining text as the target/query
+            const remainingTextMatch = /^\/explain\s+(.*)/i.exec(cleanInput);
+            if (remainingTextMatch) {
+              parsed.target = remainingTextMatch[1]?.trim() ?? '';
+            }
+          } else {
+            // Standard pattern matching for other commands or explain without topic reference
+            // Extract common elements based on the pattern
+            if (match.length > 1) {
+              parsed.action = match[1]?.trim();
+            }
+            if (match.length > 2) {
+              parsed.target = match[2]?.trim();
+            }
+            if (match.length > 3) {
+              parsed.location = match[3]?.trim();
+            }
           }
 
-          parsed.modifiers = this.extractModifiers(input);
+          parsed.modifiers = this.extractModifiers(cleanInput);
           
           return parsed;
         }
@@ -400,27 +609,29 @@ export class ConversationalCommandParser {
 
     // Fallback: try to extract basic command structure
     const basicRegex = /^\/(\w+)\s+(.*)/;
-    const basicMatch = basicRegex.exec(input);
+    const basicMatch = basicRegex.exec(cleanInput);
     if (basicMatch) {
       return {
         command: basicMatch[1] ?? 'unknown',
         target: basicMatch[2] ?? '',
         originalText: input,
-        confidence: 0.5,
-        modifiers: this.extractModifiers(input)
+        topicReference,
+        referencedTopic,
+        confidence: referencedTopic ? 0.6 : 0.5,
+        modifiers: this.extractModifiers(cleanInput)
       };
     }
 
     return null;
   }
 
-  executeConversationalCommand(input: string, context?: CommandContext): CommandResult | ChainedCommandResult {
+  async executeConversationalCommand(input: string, context?: CommandContext): Promise<CommandResult | ChainedCommandResult> {
     // Check if input contains command chaining (multiple commands separated by "and")
     if (this.isChainedCommand(input)) {
       return this.executeChainedCommands(input, context);
     }
 
-    const parsed = this.parseConversationalCommand(input);
+    const parsed = this.parseConversationalCommand(input, context);
     
     if (!parsed) {
       return {
@@ -428,6 +639,13 @@ export class ConversationalCommandParser {
         message: 'Invalid command format. Commands should start with "/" followed by an action.',
         type: 'error'
       };
+    }
+
+    // If topic was referenced but not found, treat it as normal text in the target
+    if (parsed.topicReference && !parsed.referencedTopic) {
+      // Instead of showing error, include the topic reference as part of the target text
+      parsed.target = parsed.target ? `${parsed.target} @${parsed.topicReference}` : `@${parsed.topicReference}`;
+      console.log(`Topic "@${parsed.topicReference}" not found, treating as normal text`);
     }
 
     const command = this.commands.get(parsed.command);
@@ -440,7 +658,9 @@ export class ConversationalCommandParser {
     }
 
     try {
-      return command.execute(parsed, context);
+      const result = command.execute(parsed, context);
+      // Handle both sync and async commands
+      return await Promise.resolve(result);
     } catch (error) {
       return {
         success: false,
@@ -455,7 +675,7 @@ export class ConversationalCommandParser {
     return /\s+and\s+\/\w+/.test(input);
   }
 
-  private parseChainedCommands(input: string): ChainedCommand[] {
+  private parseChainedCommands(input: string, context?: CommandContext): ChainedCommand[] {
     // Split the input by "and /" pattern while preserving the "/" for each command
     const commandParts = input.split(/\s+and\s+(?=\/)/i);
     
@@ -464,7 +684,7 @@ export class ConversationalCommandParser {
     commandParts.forEach((part, index) => {
       const trimmedPart = part.trim();
       if (trimmedPart.startsWith('/')) {
-        const parsed = this.parseConversationalCommand(trimmedPart);
+        const parsed = this.parseConversationalCommand(trimmedPart, context);
         if (parsed) {
           chainedCommands.push({
             parsed,
@@ -477,8 +697,8 @@ export class ConversationalCommandParser {
     return chainedCommands;
   }
 
-  private executeChainedCommands(input: string, context?: CommandContext): ChainedCommandResult {
-    const chainedCommands = this.parseChainedCommands(input);
+  private async executeChainedCommands(input: string, context?: CommandContext): Promise<ChainedCommandResult> {
+    const chainedCommands = this.parseChainedCommands(input, context);
     
     if (chainedCommands.length === 0) {
       return {
@@ -510,7 +730,7 @@ export class ConversationalCommandParser {
 
       try {
         // Execute the command with the enhanced context from previous commands
-        const result = command.execute(chainedCommand.parsed, enhancedContext);
+        const result = await Promise.resolve(command.execute(chainedCommand.parsed, enhancedContext));
         results.push(result);
         
         if (result.success) {
@@ -582,11 +802,25 @@ export class ConversationalCommandParser {
     help += '• Commands are conversational - use natural language\n';
     help += '• Specify page numbers for precise navigation\n';
     help += '• Use "all" to apply actions globally\n';
+    help += '• **Reference topics** with @<topic_name> - e.g., `/explain @physics concepts`\n';
+    help += '• Topic references provide context from extracted document topics\n';
     help += '• Combine actions for complex workflows\n';
     help += '• **Chain commands** with "and" - e.g., `/analyze trends and /explain results`\n';
     help += '• Chained commands pass data between each other for enhanced results\n';
 
     return help;
+  }
+
+  // Get list of available topic names for autocomplete
+  getAvailableTopicNames(context?: CommandContext): string[] {
+    if (!context?.availableTopics?.topics) return [];
+    
+    return context.availableTopics.topics.map(topic => topic.topic_name);
+  }
+
+  // Check if a topic reference exists
+  hasTopicReference(input: string): boolean {
+    return /@\w+/.test(input);
   }
 }
 

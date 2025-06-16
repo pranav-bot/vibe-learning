@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import topicExtractor from "~/commands-ai/topic-extractor";
+import explain from "~/commands-ai/explain";
 import llms from "~/commands-ai/llms";
 
 // Define the input structure that matches the Python backend response
@@ -78,6 +79,78 @@ export const contentRouter = createTRPCRouter({
         }
         
         throw new Error(`Failed to extract topics: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  explainContent: publicProcedure
+    .input(z.object({
+      contentId: z.string(),
+      userQuery: z.string(),
+      difficulty: z.enum(['beginner', 'intermediate', 'advanced', 'expert']).default('intermediate'),
+      topic: z.object({
+        topic_name: z.string(),
+        topic_page_start: z.number(),
+        topic_page_end: z.number(),
+        topic_summary: z.string()
+      }).optional(),
+      pageNumber: z.number().optional()
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        console.log(`🤖 Starting explanation for content ID: ${input.contentId}`);
+        console.log(`📝 User query: ${input.userQuery}`);
+        console.log(`🎚️ Difficulty: ${input.difficulty}`);
+        
+        if (input.topic) {
+          console.log(`📚 Using topic: ${input.topic.topic_name} (Pages ${input.topic.topic_page_start}-${input.topic.topic_page_end})`);
+        } else if (input.pageNumber) {
+          console.log(`📄 Using page number: ${input.pageNumber}`);
+        }
+
+        // Call the explain function with timeout
+        const explainPromise = explain(
+          input.userQuery,
+          input.difficulty,
+          llms.gemini("gemini-2.0-flash-exp"),
+          input.topic,
+          input.pageNumber,
+          input.contentId
+        );
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Explanation generation timed out after 2 minutes")), 120000)
+        );
+        
+        const explanation = await Promise.race([explainPromise, timeoutPromise]) as string;
+        
+        console.log(`✅ Explanation generated successfully (${explanation.length} characters)`);
+        
+        return {
+          success: true,
+          data: {
+            explanation,
+            contentId: input.contentId,
+            userQuery: input.userQuery,
+            difficulty: input.difficulty,
+            topic: input.topic,
+            pageNumber: input.pageNumber,
+            generatedAt: new Date().toISOString()
+          }
+        };
+        
+      } catch (error) {
+        console.error("❌ Error generating explanation:", error);
+        
+        // Provide more detailed error information
+        if (error instanceof Error) {
+          if (error.message.includes("Explanation generation timed out")) {
+            throw new Error("Explanation generation took too long and was cancelled (>2 minutes)");
+          } else if (error.message.includes("Failed to fetch")) {
+            throw new Error("Unable to fetch content from the document. Please check the content ID and page numbers.");
+          }
+        }
+        
+        throw new Error(`Failed to generate explanation: ${error instanceof Error ? error.message : String(error)}`);
       }
     }),
 });

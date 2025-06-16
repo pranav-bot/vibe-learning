@@ -36,7 +36,7 @@ const topicExtractor = async (content: ContentInput, model: LanguageModelV1) => 
   const response = await generateObject({
     model: model,
     prompt: `Analyze the following document with ${content.total_pages} pages and extract the main topics. For each topic, identify:
-1. The topic name/title
+1. The topic name/title(without spaces)
 2. The starting page number where the topic begins
 3. The ending page number where the topic ends
 4. A detailed summary of the topic content 

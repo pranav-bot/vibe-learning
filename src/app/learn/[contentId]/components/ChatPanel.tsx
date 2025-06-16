@@ -4,10 +4,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, MoreHorizontal, Terminal, X } from "lucide-react";
-import { commandParser, type CommandResult } from "~/lib/command-parser";
-import { conversationalCommandParser, type CommandResult as ConvCommandResult, type CommandAction } from "~/lib/conversational-command-parser";
+import { conversationalCommandParser, type CommandResult, type CommandAction } from "~/lib/conversational-command-parser";
 
 // Import difficulty types
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert';
@@ -26,7 +24,7 @@ interface Message {
   type: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  commandResult?: CommandResult | ConvCommandResult;
+  commandResult?: CommandResult;
   actions?: CommandAction[];
 }
 
@@ -41,25 +39,28 @@ interface ChatPanelProps {
   onCommandAction?: (action: CommandAction) => void;
   difficulty?: DifficultyLevel;
   difficultyConfig?: DifficultyConfig;
+  availableTopics?: { topics: { topic_name: string; topic_page_start: number; topic_page_end: number; topic_summary: string; }[] }; // New: extracted topics
 }
 
-export function ChatPanel({ contentId, contentData, onCommandAction, difficulty: _difficulty = 'intermediate', difficultyConfig }: ChatPanelProps) {
+export function ChatPanel({ contentId, contentData, onCommandAction, difficulty: _difficulty = 'intermediate', difficultyConfig, availableTopics }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'assistant',
-      content: `Hello! I'm your AI learning assistant${difficultyConfig ? ` set to **${difficultyConfig.emoji} ${difficultyConfig.label}** level` : ''}. I can help you understand and analyze "${contentData?.title ?? 'this content'}". Feel free to ask me any questions about the material!\n\n💡 **Try conversational commands like:**\n• \`/solve all problems on page 28\`\n• \`/visualize biology diagrams\`\n• \`/explain photosynthesis step by step\`\n• \`/help\` for more commands`,
+      content: `Hello! I'm your AI learning assistant${difficultyConfig ? ` set to **${difficultyConfig.emoji} ${difficultyConfig.label}** level` : ''}. I can help you understand and analyze "${contentData?.title ?? 'this content'}". Feel free to ask me any questions about the material!\n\n💡 **Try conversational commands like:**\n• \`/solve all problems on page 28\`\n• \`/visualize biology diagrams\`\n• \`/explain photosynthesis step by step\`${availableTopics?.topics.length ? `\n• \`/explain @${availableTopics.topics[0]?.topic_name} concepts\`` : '\n• \`/explain @topic concepts\` - (topics loading...)'}\n• \`/help\` for more commands`,
       timestamp: new Date()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
+  const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Remove unused contentId parameter warning by using it
   console.debug('ChatPanel initialized for content:', contentId);
+  console.debug('Available topics:', availableTopics?.topics?.length ?? 0, 'topics');
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages are added
@@ -70,6 +71,13 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
       }
     }
   }, [messages]);
+
+  // Reset textarea height when input is cleared
+  useEffect(() => {
+    if (!inputValue && inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
+  }, [inputValue]);
 
   // Watch for difficulty changes and add system message
   useEffect(() => {
@@ -108,44 +116,40 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
     };
 
     // Check if it's a command and if it's valid
-    if (isValidCommandInput(messageInput) && (commandParser.isCommand(messageInput) || conversationalCommandParser.isCommand(messageInput))) {
+    if (isValidCommandInput(messageInput) && conversationalCommandParser.isCommand(messageInput)) {
       try {
-        let commandResult: CommandResult | ConvCommandResult;
+        setIsLoading(true);
         
-        // Try conversational parser first for richer commands
-        const convParsed = conversationalCommandParser.parseConversationalCommand(messageInput);
-        if (convParsed && convParsed.confidence > 0.7) {
-          commandResult = conversationalCommandParser.executeConversationalCommand(messageInput, { 
-            contentData, 
-            contentId,
-            currentPage: 1 // You can track current page state
-          });
-        } else {
-          // Fall back to traditional command parser
-          commandResult = commandParser.executeCommand(messageInput, { 
-            contentData, 
-            contentId 
-          });
-        }
+        // Use only conversational parser for all commands
+        const commandResult = await conversationalCommandParser.executeConversationalCommand(messageInput, { 
+          contentData, 
+          contentId,
+          currentPage: 1,
+          availableTopics // Pass available topics for topic resolution
+        });
 
-        // Handle special command actions
-        const commandData = commandResult.data as { action?: string } | undefined;
-        if (commandData?.action === 'clear_chat') {
-          setMessages([{
-            id: Date.now().toString(),
-            type: 'system',
-            content: commandResult.message,
-            timestamp: new Date(),
-            commandResult
-          }]);
-          return;
-        }
+        setIsLoading(false);
 
-        // Execute command actions if available
-        if ('actions' in commandResult && commandResult.actions && onCommandAction) {
-          commandResult.actions.forEach(action => {
-            onCommandAction(action);
-          });
+        // Handle special command actions (only for single CommandResult, not ChainedCommandResult)
+        if ('data' in commandResult) {
+          const commandData = commandResult.data as { action?: string } | undefined;
+          if (commandData?.action === 'clear_chat') {
+            setMessages([{
+              id: Date.now().toString(),
+              type: 'system',
+              content: commandResult.message,
+              timestamp: new Date(),
+              commandResult
+            }]);
+            return;
+          }
+
+          // Execute command actions if available
+          if ('actions' in commandResult && commandResult.actions && onCommandAction) {
+            commandResult.actions.forEach((action: CommandAction) => {
+              onCommandAction(action);
+            });
+          }
         }
 
         const commandResponseMessage: Message = {
@@ -154,11 +158,12 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
           content: commandResult.message,
           timestamp: new Date(),
           commandResult,
-          actions: 'actions' in commandResult ? commandResult.actions : undefined
+          actions: ('data' in commandResult && 'actions' in commandResult) ? commandResult.actions : undefined
         };
 
         setMessages(prev => [...prev, commandResponseMessage]);
       } catch (error) {
+        setIsLoading(false);
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: 'system',
@@ -206,38 +211,62 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
     void navigator.clipboard.writeText(content);
   };
 
-  // Function to highlight commands in message content
+  // Function to highlight commands and topics in message content
   const highlightCommands = (content: string) => {
-    // Regular expression to match only the command word (starting with / and followed by word characters)
-    const commandRegex = /\/\w+/g;
+    // Updated regex to match commands and topics until next space character
+    const combinedRegex = /(\/\S+|@\S+)/g;
     
     const parts = [];
     let lastIndex = 0;
     let match;
 
-    while ((match = commandRegex.exec(content)) !== null) {
-      // Add text before the command
+    while ((match = combinedRegex.exec(content)) !== null) {
+      // Add text before the command/topic
       if (match.index > lastIndex) {
         parts.push(content.slice(lastIndex, match.index));
       }
       
-      // Check if the command is valid before highlighting
-      const command = match[0];
-      const isValid = isValidCommand(command);
+      const matchedText = match[0];
       
-      if (isValid) {
-        // Add the highlighted command (only if it's valid)
-        parts.push(
-          <span 
-            key={match.index}
-            className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 font-mono text-xs backdrop-blur-sm"
-          >
-            {command}
-          </span>
+      if (matchedText.startsWith('/')) {
+        // Handle commands
+        const isValid = isValidCommand(matchedText);
+        
+        if (isValid) {
+          // Add the highlighted command (only if it's valid)
+          parts.push(
+            <span 
+              key={match.index}
+              className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 font-mono text-xs backdrop-blur-sm"
+            >
+              {matchedText}
+            </span>
+          );
+        } else {
+          // Add as normal text if command is not valid
+          parts.push(matchedText);
+        }
+      } else if (matchedText.startsWith('@')) {
+        // Handle topic references - now single words only
+        const topicName = matchedText.substring(1); // Remove @ symbol
+        const isValidTopic = availableTopics?.topics.some(topic => 
+          topic.topic_name.toLowerCase() === topicName.toLowerCase()
         );
-      } else {
-        // Add as normal text if command is not valid
-        parts.push(command);
+        
+        if (isValidTopic) {
+          // Add the highlighted topic (only if it's valid)
+          parts.push(
+            <span 
+              key={match.index}
+              className="bg-green-500/20 text-green-300 px-1.5 py-0.5 rounded border border-green-500/30 font-medium text-xs backdrop-blur-sm"
+            >
+              {matchedText}
+            </span>
+          );
+        } else {
+          // Add as normal text if topic is not valid
+          parts.push(matchedText);
+        }
       }
       
       lastIndex = match.index + match[0].length;
@@ -253,37 +282,208 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
 
   // Function to check if a command is valid
   const isValidCommand = (command: string) => {
-    return availableCommands.some(cmd => cmd.command === command);
+    const availableCommandNames = conversationalCommandParser.getCommands().map(cmd => `/${cmd.name}`);
+    return availableCommandNames.includes(command);
   };
 
-  // Function to render input with command highlighting
-  const renderInputWithHighlighting = (value: string) => {
-    const commandRegex = /\/\w+/g;
-    const match = commandRegex.exec(value);
+  // Function to get available topics matching current input
+  const getMatchingTopics = (prefix: string): string[] => {
+    if (!availableTopics?.topics) return [];
     
-    if (match && match.index === 0) {
-      const commandPart = match[0];
-      const remainingPart = value.slice(commandPart.length);
-      const isValid = isValidCommand(commandPart);
-      
-      if (isValid) {
-        return (
-          <div className="flex items-center w-full overflow-hidden">
-            <span className="bg-amber-500/40 text-amber-200 px-1.5 py-0.5 rounded border border-amber-500/50 font-mono text-sm backdrop-blur-sm whitespace-nowrap">
-              {commandPart}
-            </span>
-            <span className="text-white ml-1 flex-1 min-w-0">
-              {remainingPart}
-              {/* Invisible cursor spacer to position the actual cursor correctly */}
-              <span className="opacity-0">|</span>
-            </span>
-          </div>
-        );
+    const lowerPrefix = prefix.toLowerCase();
+    return availableTopics.topics
+      .filter(topic => topic.topic_name.toLowerCase().includes(lowerPrefix))
+      .map(topic => topic.topic_name)
+      .slice(0, 10); // Limit to 10 suggestions
+  };
+
+  // 🛠️ DECORATION LAYER - Token-based highlighting system
+  
+  // Token types for decoration
+  type TokenType = 'command' | 'topic' | 'text';
+  
+  interface TextToken {
+    type: TokenType;
+    value: string;
+    start: number;
+    end: number;
+    isValid?: boolean;
+    isPartial?: boolean;
+  }
+  
+  // 2️⃣ PARSER - Token scanning for commands and topics
+  const parseTextTokens = (text: string): TextToken[] => {
+    const tokens: TextToken[] = [];
+    // Updated regex to match until next space character (includes hyphens, underscores, etc.)
+    const commandRegex = /\/\S+/g;
+    const topicRegex = /@\S+/g;
+    
+    let lastIndex = 0;
+    const matches: { regex: RegExp; type: TokenType }[] = [
+      { regex: commandRegex, type: 'command' },
+      { regex: topicRegex, type: 'topic' }
+    ];
+    
+    // Collect all matches with their positions
+    const allMatches: { match: RegExpExecArray; type: TokenType }[] = [];
+    
+    matches.forEach(({ regex, type }) => {
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        allMatches.push({ match, type });
       }
+    });
+    
+    // Sort matches by position
+    allMatches.sort((a, b) => a.match.index - b.match.index);
+    
+    // Build tokens
+    allMatches.forEach(({ match, type }) => {
+      // Add text before this match
+      if (match.index > lastIndex) {
+        tokens.push({
+          type: 'text',
+          value: text.slice(lastIndex, match.index),
+          start: lastIndex,
+          end: match.index
+        });
+      }
+      
+      // Add the matched token with validation
+      const tokenValue = match[0];
+      let isValid = false;
+      let isPartial = false;
+      
+      if (type === 'command') {
+        isValid = isValidCommand(tokenValue);
+      } else if (type === 'topic') {
+        const topicName = tokenValue.substring(1); // Remove @
+        isValid = availableTopics?.topics.some(topic => 
+          topic.topic_name.toLowerCase() === topicName.toLowerCase()
+        ) ?? false;
+        
+        // Check for partial match if not valid
+        if (!isValid) {
+          isPartial = availableTopics?.topics.some(topic => 
+            topic.topic_name.toLowerCase().includes(topicName.toLowerCase())
+          ) ?? false;
+        }
+      }
+      
+      tokens.push({
+        type,
+        value: tokenValue,
+        start: match.index,
+        end: match.index + tokenValue.length,
+        isValid,
+        isPartial
+      });
+      
+      lastIndex = match.index + tokenValue.length;
+    });
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      tokens.push({
+        type: 'text',
+        value: text.slice(lastIndex),
+        start: lastIndex,
+        end: text.length
+      });
     }
     
-    // For invalid commands or non-commands, return plain text
-    return <span className="text-white">{value}</span>;
+    return tokens;
+  };
+  
+  // 3️⃣ DECORATION LAYER - Apply visual styles to tokens
+  const renderTokenizedInput = (value: string) => {
+    const tokens = parseTextTokens(value);
+    
+    return tokens.map((token, index) => {
+      switch (token.type) {
+        case 'command':
+          if (token.isValid) {
+            return (
+              <span 
+                key={index}
+                className="bg-amber-500/40 text-amber-100 px-1.5 py-0.5 rounded border border-amber-400/50 font-mono text-sm font-medium shadow-sm"
+                title={`Valid command: ${token.value}`}
+              >
+                {token.value}
+              </span>
+            );
+          } else {
+            return (
+              <span 
+                key={index}
+                className="bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded border border-amber-400/30 font-mono text-sm opacity-70"
+                title={`Invalid command: ${token.value}`}
+              >
+                {token.value}
+              </span>
+            );
+          }
+          
+        case 'topic':
+          if (token.isValid) {
+            return (
+              <span 
+                key={index}
+                className="bg-green-500/40 text-green-100 px-1.5 py-0.5 rounded border border-green-400/50 font-medium text-sm shadow-sm"
+                title={`Valid topic: ${token.value}`}
+              >
+                {token.value}
+              </span>
+            );
+          } else if (token.isPartial) {
+            return (
+              <span 
+                key={index}
+                className="bg-green-500/25 text-green-200 px-1.5 py-0.5 rounded border border-green-400/35 font-medium text-sm"
+                title={`Partial topic match: ${token.value}`}
+              >
+                {token.value}
+              </span>
+            );
+          } else {
+            return (
+              <span 
+                key={index}
+                className="bg-green-500/15 text-green-300 px-1.5 py-0.5 rounded border border-green-400/25 font-medium text-sm opacity-60"
+                title={`Unknown topic: ${token.value}`}
+              >
+                {token.value}
+              </span>
+            );
+          }
+          
+        case 'text':
+        default:
+          return (
+            <span key={index} className="text-white">
+              {token.value}
+            </span>
+          );
+      }
+    });
+  };
+  
+  // Helper function to check if input has any special tokens
+  const hasSpecialTokens = (value: string): boolean => {
+    const tokens = parseTextTokens(value);
+    return tokens.some(token => token.type !== 'text');
+  };
+  
+  // Helper function to get decoration status for input styling
+  const getDecorationStatus = (value: string): 'command' | 'topic' | 'mixed' | 'none' => {
+    const tokens = parseTextTokens(value);
+    const hasCommands = tokens.some(token => token.type === 'command' && token.isValid);
+    const hasTopics = tokens.some(token => token.type === 'topic' && (token.isValid ?? token.isPartial));
+    
+    if (hasCommands && hasTopics) return 'mixed';
+    if (hasCommands) return 'command';
+    if (hasTopics) return 'topic';
+    return 'none';
   };
 
   const getSystemMessageBgColor = (type?: string) => {
@@ -296,31 +496,103 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setInputValue(value);
     
-    // Show command suggestions only when user types '/' at the beginning
+    // Auto-resize textarea
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+    }
+    
+    // Check if we're currently typing a topic reference (@ followed by optional text)
+    const atIndex = value.lastIndexOf('@');
+    const isTypingTopic = atIndex !== -1;
+    
+    if (isTypingTopic && availableTopics?.topics.length) {
+      // Extract what's being typed after the @ symbol (can be empty)
+      const afterAt = value.substring(atIndex + 1);
+      console.log('Topic reference detected:', { afterAt, availableTopicsCount: availableTopics.topics.length });
+      
+      // Get text until next space or end of string
+      const nextSpaceIndex = afterAt.indexOf(' ');
+      const topicText = nextSpaceIndex === -1 ? afterAt : afterAt.substring(0, nextSpaceIndex);
+      
+      // Check if the topic text is an exact topic match
+      const isExactMatch = availableTopics.topics.some(topic => 
+        topic.topic_name.toLowerCase() === topicText.toLowerCase()
+      );
+      
+      // Show suggestions only if:
+      // 1. We don't have an exact match yet and are actively typing
+      // 2. We just typed @ (empty afterAt)
+      // 3. We haven't reached a space yet (still typing the topic name)
+      const isActivelyTyping = nextSpaceIndex === -1 || topicText.length > 0;
+      const shouldShowSuggestions = !isExactMatch && isActivelyTyping;
+      
+      if (shouldShowSuggestions) {
+        setShowTopicSuggestions(true);
+        setShowCommandSuggestions(false);
+        return;
+      }
+    }
+    
+    // Show command suggestions when typing / at start
     if (value === '/' || (value.startsWith('/') && value.length <= 15 && !value.includes(' '))) {
       setShowCommandSuggestions(true);
+      setShowTopicSuggestions(false);
     } else {
       setShowCommandSuggestions(false);
+      setShowTopicSuggestions(false);
     }
   };
 
   const handleCommandSelect = (command: string) => {
-    setInputValue(command + ' ');
+    const newValue = command + ' ';
+    setInputValue(newValue);
+    
+    // Auto-resize textarea and set cursor position after setting value
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+        
+        // Set cursor position at the end
+        const cursorPosition = newValue.length;
+        inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+        inputRef.current.focus();
+      }
+    }, 0);
+    
     setShowCommandSuggestions(false);
-    inputRef.current?.focus();
+    setShowTopicSuggestions(false);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void handleSendMessage();
-    } else if (e.key === 'Escape') {
-      setShowCommandSuggestions(false);
+  const handleTopicSelect = (topicName: string) => {
+    // Find the last @ symbol and replace everything after it with the selected topic
+    const atIndex = inputValue.lastIndexOf('@');
+    if (atIndex !== -1) {
+      const beforeAt = inputValue.substring(0, atIndex);
+      const newValue = beforeAt + '@' + topicName + ' ';
+      setInputValue(newValue);
+      
+      // Auto-resize textarea and set cursor position after setting value
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = 'auto';
+          inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+          
+          // Set cursor position at the end
+          const cursorPosition = newValue.length;
+          inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+          inputRef.current.focus();
+        }
+      }, 0);
     }
+    
+    setShowTopicSuggestions(false);
+    setShowCommandSuggestions(false);
   };
 
   const suggestedQuestions = [
@@ -331,23 +603,17 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
     "/explain photosynthesis step by step",
     "/analyze trends in chapter 3",
     "/goto page 15",
+    ...(availableTopics?.topics.length ? [
+      `/explain @${availableTopics.topics[0]?.topic_name} concepts`,
+      `/analyze @${availableTopics.topics[1]?.topic_name ?? availableTopics.topics[0]?.topic_name} with respect to recent developments`
+    ] : []),
     "/help - Show all commands"
   ];
 
-  const availableCommands = [
-    { command: "/help", description: "Show all available commands" },
-    { command: "/solve", description: "Solve problems or equations" },
-    { command: "/explain", description: "Explain concepts in detail" },
-    { command: "/summarize", description: "Summarize content or sections" },
-    { command: "/visualize", description: "Create visual representations" },
-    { command: "/analyze", description: "Analyze data or trends" },
-    { command: "/goto", description: "Navigate to specific page" },
-    { command: "/quiz", description: "Generate quiz questions" },
-    { command: "/highlight", description: "Highlight important points" },
-    { command: "/translate", description: "Translate content" },
-    { command: "/clear", description: "Clear chat history" },
-    { command: "/save", description: "Save current session" }
-  ];
+  const availableCommands = conversationalCommandParser.getCommands().map(cmd => ({
+    command: `/${cmd.name}`,
+    description: cmd.description
+  }));
 
   return (
     <div className="h-full flex flex-col">
@@ -495,33 +761,67 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
 
       {/* Input Area */}
       <div className="border-t border-white/10 p-4 relative">
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 items-end">
           <div className="relative flex-1">
-            {/* Input field */}
-            <Input
-              ref={inputRef}
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask a question or type a command (e.g., /help)..."
-              className={`border-white/20 placeholder:text-gray-400 text-sm ${
-                inputValue.startsWith('/') && isValidCommand(inputValue.split(' ')[0] ?? '')
-                  ? 'bg-amber-900/30 border-amber-500/50 ring-1 ring-amber-500/30'
-                  : 'bg-white/10 text-white'
-              }`}
-              disabled={isLoading}
-              style={{
-                color: inputValue.startsWith('/') && isValidCommand(inputValue.split(' ')[0] ?? '') ? 'transparent' : undefined,
-                caretColor: inputValue.startsWith('/') && isValidCommand(inputValue.split(' ')[0] ?? '') ? 'white' : undefined
-              }}
-            />
-            
-            {/* Command highlighting overlay - only show when valid command */}
-            {inputValue.startsWith('/') && isValidCommand(inputValue.split(' ')[0] ?? '') && (
-              <div className="absolute inset-0 flex items-center px-3 pointer-events-none text-sm overflow-hidden">
-                {renderInputWithHighlighting(inputValue)}
-              </div>
-            )}
+            {/* Input container with token-based decoration layer */}
+            <div className="relative">
+              {/* 3️⃣ DECORATION LAYER - Token highlighting overlay */}
+              {hasSpecialTokens(inputValue) && (
+                <div 
+                  className={`absolute inset-0 px-3 py-2 pointer-events-none text-sm rounded-md z-10 ${
+                    getDecorationStatus(inputValue) === 'command' 
+                      ? 'bg-amber-900/20 border border-amber-500/30'
+                      : getDecorationStatus(inputValue) === 'topic'
+                      ? 'bg-green-900/20 border border-green-500/30'
+                      : getDecorationStatus(inputValue) === 'mixed'
+                      ? 'bg-purple-900/20 border border-purple-500/30'
+                      : 'border border-white/20'
+                  }`}
+                  style={{
+                    fontSize: '14px',
+                    lineHeight: '20px',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <div className="whitespace-pre-wrap break-words min-h-[24px]">
+                    {renderTokenizedInput(inputValue)}
+                  </div>
+                </div>
+              )}
+              
+              {/* 1️⃣ TEXT INPUT AREA - Textarea field */}
+              <textarea
+                ref={inputRef}
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleSendMessage();
+                  } else if (e.key === 'Escape') {
+                    setShowCommandSuggestions(false);
+                    setShowTopicSuggestions(false);
+                  }
+                }}
+                placeholder="Ask a question or type a command (e.g., /help)..."
+                className={`w-full resize-none rounded-md px-3 py-2 text-sm ring-offset-background placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[40px] max-h-[120px] overflow-y-auto relative z-20 ${
+                  getDecorationStatus(inputValue) === 'command'
+                    ? 'border border-amber-500/50 ring-1 ring-amber-500/30'
+                    : getDecorationStatus(inputValue) === 'topic'
+                    ? 'border border-green-500/50 ring-1 ring-green-500/30'
+                    : getDecorationStatus(inputValue) === 'mixed'
+                    ? 'border border-purple-500/50 ring-1 ring-purple-500/30'
+                    : 'bg-white/10 text-white border border-white/20'
+                }`}
+                style={{
+                  color: hasSpecialTokens(inputValue) ? 'transparent' : 'white',
+                  caretColor: 'white',
+                  backgroundColor: hasSpecialTokens(inputValue) ? 'transparent' : 'rgb(255 255 255 / 0.1)'
+                }}
+                disabled={isLoading}
+                rows={1}
+              />
+            </div>
             
             {/* Command Suggestions Dropdown */}
             {showCommandSuggestions && (
@@ -560,6 +860,60 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
                 </div>
               </div>
             )}
+
+            {/* Topic Suggestions Dropdown */}
+            {showTopicSuggestions && availableTopics?.topics.length && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 border border-white/20 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
+                <div className="p-2 border-b border-white/10 flex items-center justify-between">
+                  <p className="text-xs text-gray-400">Available Topics:</p>
+                  <button
+                    onClick={() => setShowTopicSuggestions(false)}
+                    className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
+                    title="Close suggestions"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                <div className="p-1">
+                  {(() => {
+                    // Get the text after the last @ symbol
+                    const atIndex = inputValue.lastIndexOf('@');
+                    const afterAt = atIndex !== -1 ? inputValue.substring(atIndex + 1) : '';
+                    
+                    // Get text until next space or end of string
+                    const nextSpaceIndex = afterAt.indexOf(' ');
+                    const topicText = nextSpaceIndex === -1 ? afterAt : afterAt.substring(0, nextSpaceIndex);
+                    const isStillTypingTopic = nextSpaceIndex === -1;
+                    
+                    if (!isStillTypingTopic && topicText.length === 0) return null;
+                    
+                    const matchingTopics = getMatchingTopics(topicText);
+                    
+                    return matchingTopics.length > 0 ? matchingTopics.map((topicName, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleTopicSelect(topicName)}
+                        className="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded flex items-center justify-between group"
+                      >
+                        <div>
+                          <span className="text-green-300 font-medium">@{topicName}</span>
+                          <span className="text-gray-400 text-xs ml-2">
+                            {availableTopics?.topics.find(t => t.topic_name === topicName)?.topic_summary.slice(0, 60)}...
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 opacity-0 group-hover:opacity-100">
+                          Click to use
+                        </div>
+                      </button>
+                    )) : (
+                      <div className="px-3 py-2 text-sm text-gray-400">
+                        No topics found matching &ldquo;{topicText}&rdquo;
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
           
           <Button
@@ -572,9 +926,21 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
           </Button>
         </div>
         
-        {inputValue.startsWith('/') && isValidCommand(inputValue.split(' ')[0] ?? '') && !showCommandSuggestions && (
+        {getDecorationStatus(inputValue) === 'command' && !showCommandSuggestions && !showTopicSuggestions && (
           <div className="mt-2 text-xs text-amber-300 bg-amber-900/20 px-2 py-1 rounded border border-amber-500/30">
             💡 Command detected - Press Enter to execute
+          </div>
+        )}
+        
+        {(getDecorationStatus(inputValue) === 'topic' || getDecorationStatus(inputValue) === 'mixed') && !showTopicSuggestions && !showCommandSuggestions && (
+          <div className="mt-2 text-xs text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-500/30">
+            🏷️ Topic reference detected - Continue typing or press Enter
+          </div>
+        )}
+        
+        {showTopicSuggestions && (
+          <div className="mt-2 text-xs text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-500/30">
+            🏷️ Type @ followed by topic name for contextual commands
           </div>
         )}
       </div>
