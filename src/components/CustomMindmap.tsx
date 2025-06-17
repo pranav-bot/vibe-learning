@@ -73,7 +73,27 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const scaleAmount = e.deltaY > 0 ? 0.95 : 1.05;
-    setScale(prev => Math.min(Math.max(prev * scaleAmount, 0.1), 5));
+    const newScale = Math.min(Math.max(scale * scaleAmount, 0.1), 5);
+    
+    // Calculate zoom towards the mindmap center (5000, 5000)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Transform mouse position to canvas coordinates
+    const canvasMouseX = (mouseX - position.x) / scale;
+    const canvasMouseY = (mouseY - position.y) / scale;
+    
+    // Calculate new position to zoom towards mindmap center
+    const mindmapCenterX = 5000;
+    const mindmapCenterY = 5000;
+    
+    // Adjust position to zoom towards mindmap center
+    const newX = position.x - (mindmapCenterX - canvasMouseX) * (newScale - scale);
+    const newY = position.y - (mindmapCenterY - canvasMouseY) * (newScale - scale);
+    
+    setPosition({ x: newX, y: newY });
+    setScale(newScale);
   };
 
   useEffect(() => {
@@ -106,10 +126,33 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
 
   const calculateNodePositions = (roadmap: Roadmap): TopicNode[] => {
     const nodes: TopicNode[] = [];
-    const levelRadius = [0, 250, 400, 550, 700]; // Distance from center for each level
+    // Base radii for each level - these will be adjusted for collision avoidance
+    const levelRadii = [0, 250, 400, 600, 800];
+    const minNodeSpacing = 60; // Minimum space between node edges
     // Position the mindmap at the center of the large canvas so it appears centered in the viewport
     const centerX = 5000; // Half of the 10000px canvas width
     const centerY = 5000; // Half of the 10000px canvas height
+
+    // Helper function to calculate node size (same logic as getNodeSize but accessible here)
+    const calculateNodeSize = (title: string, level: number, isRoot = false): { width: number; height: number } => {
+      const baseWidth = isRoot ? 160 : level === 0 ? 140 : level === 1 ? 120 : level === 2 ? 100 : 90;
+      const baseHeight = isRoot ? 60 : level === 0 ? 50 : level === 1 ? 45 : level === 2 ? 40 : 35;
+      const titleLength = title.length;
+      const minWidth = baseWidth;
+      const textWidth = Math.max(minWidth, titleLength * 8 + 20);
+      return {
+        width: Math.min(textWidth, baseWidth * 1.5),
+        height: baseHeight
+      };
+    };
+
+    // Helper function to check if two rectangular nodes collide
+    const nodesCollide = (pos1: Position, size1: { width: number; height: number }, 
+                         pos2: Position, size2: { width: number; height: number }): boolean => {
+      const margin = minNodeSpacing / 2;
+      return Math.abs(pos1.x - pos2.x) < (size1.width + size2.width) / 2 + margin &&
+             Math.abs(pos1.y - pos2.y) < (size1.height + size2.height) / 2 + margin;
+    };
 
     // Create root node
     const rootNode: TopicNode = {
@@ -148,15 +191,34 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
           let position: Position;
           
           if (level === 0) {
-            // Root topics - arrange in circle around center
-            const angle = (topicIndex / topicsAtLevel.length) * 2 * Math.PI;
-            const radius = levelRadius[1] ?? 250;
-            position = {
-              x: centerX + radius * Math.cos(angle),
-              y: centerY + radius * Math.sin(angle)
-            };
+            // Root topics - arrange in circle around center with collision avoidance
+            const baseRadius = levelRadii[1] ?? 300;
+            let attempts = 0;
+            let radius = baseRadius;
+            
+            do {
+              const angle = (topicIndex / topicsAtLevel.length) * 2 * Math.PI;
+              position = {
+                x: centerX + radius * Math.cos(angle),
+                y: centerY + radius * Math.sin(angle)
+              };
+              
+              // Check for collisions with existing nodes
+              const nodeSize = calculateNodeSize(topic.title, topic.level);
+              const hasCollision = nodes.some(existingNode => {
+                const existingSize = calculateNodeSize(existingNode.title, existingNode.level ?? existingNode.depth, existingNode.id === 'root');
+                return nodesCollide(position, nodeSize, existingNode.position, existingSize);
+              });
+              
+              if (!hasCollision) break;
+              
+              // Increase radius to avoid collision
+              radius += 40;
+              attempts++;
+            } while (attempts < 10);
+            
           } else {
-            // Child topics - position relative to parent
+            // Child topics - position relative to parent with collision avoidance
             const parent = nodes.find(n => n.id === topic.parentId);
             if (parent) {
               // Find siblings (other children of the same parent)
@@ -166,24 +228,58 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
               
               // Calculate position based on parent position and sibling arrangement
               const parentAngle = Math.atan2(parent.position.y - centerY, parent.position.x - centerX);
-              const angleSpread = Math.PI / 3; // 60 degrees spread for children
+              const angleSpread = Math.PI; // 180 degrees spread for better spacing
               const startAngle = parentAngle - angleSpread / 2;
               const angleStep = numSiblings > 1 ? angleSpread / (numSiblings - 1) : 0;
               const childAngle = startAngle + (angleStep * siblingIndex);
               
-              const radius = levelRadius[Math.min(level + 1, levelRadius.length - 1)] ?? (300 + level * 150);
-              position = {
-                x: centerX + radius * Math.cos(childAngle),
-                y: centerY + radius * Math.sin(childAngle)
-              };
+              let attempts = 0;
+              let radius = levelRadii[Math.min(level + 1, levelRadii.length - 1)] ?? (350 + level * 150);
+              
+              do {
+                position = {
+                  x: centerX + radius * Math.cos(childAngle),
+                  y: centerY + radius * Math.sin(childAngle)
+                };
+                
+                // Check for collisions with existing nodes
+                const nodeSize = calculateNodeSize(topic.title, topic.level);
+                const hasCollision = nodes.some(existingNode => {
+                  const existingSize = calculateNodeSize(existingNode.title, existingNode.level ?? existingNode.depth, existingNode.id === 'root');
+                  return nodesCollide(position, nodeSize, existingNode.position, existingSize);
+                });
+                
+                if (!hasCollision) break;
+                
+                // Increase radius to avoid collision
+                radius += 40;
+                attempts++;
+              } while (attempts < 10);
+              
             } else {
-              // Fallback positioning if parent not found
-              const angle = (topicIndex / topicsAtLevel.length) * 2 * Math.PI;
-              const radius = levelRadius[Math.min(level + 1, levelRadius.length - 1)] ?? (300 + level * 150);
-              position = {
-                x: centerX + radius * Math.cos(angle),
-                y: centerY + radius * Math.sin(angle)
-              };
+              // Fallback positioning if parent not found with collision avoidance
+              let attempts = 0;
+              let radius = levelRadii[Math.min(level + 1, levelRadii.length - 1)] ?? (350 + level * 150);
+              
+              do {
+                const angle = (topicIndex / topicsAtLevel.length) * 2 * Math.PI;
+                position = {
+                  x: centerX + radius * Math.cos(angle),
+                  y: centerY + radius * Math.sin(angle)
+                };
+                
+                // Check for collisions
+                const nodeSize = calculateNodeSize(topic.title, topic.level);
+                const hasCollision = nodes.some(existingNode => {
+                  const existingSize = calculateNodeSize(existingNode.title, existingNode.level ?? existingNode.depth, existingNode.id === 'root');
+                  return nodesCollide(position, nodeSize, existingNode.position, existingSize);
+                });
+                
+                if (!hasCollision) break;
+                
+                radius += 40;
+                attempts++;
+              } while (attempts < 10);
             }
           }
           
@@ -219,15 +315,23 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
     return colors[level] ?? colors[colors.length - 1] ?? '#6b7280';
   };
 
-  const getNodeSize = (node: TopicNode): number => {
-    if (node.id === 'root') return 90; // Larger root node
-    
-    // Size based on actual level from roadmap
+  const getNodeSize = (node: TopicNode): { width: number; height: number } => {
+    const isRoot = node.id === 'root';
     const level = node.level ?? node.depth;
-    if (level === 0) return 70; // Foundation topics
-    if (level === 1) return 55; // Core skills
-    if (level === 2) return 45; // Advanced topics
-    return 35; // Specialized topics
+    
+    // Calculate size based on text content and level
+    const baseWidth = isRoot ? 160 : level === 0 ? 140 : level === 1 ? 120 : level === 2 ? 100 : 90;
+    const baseHeight = isRoot ? 60 : level === 0 ? 50 : level === 1 ? 45 : level === 2 ? 40 : 35;
+    
+    // Adjust width based on text length
+    const titleLength = node.title.length;
+    const minWidth = baseWidth;
+    const textWidth = Math.max(minWidth, titleLength * 8 + 20); // Approximate character width
+    
+    return {
+      width: Math.min(textWidth, baseWidth * 1.5), // Cap the maximum width
+      height: baseHeight
+    };
   };
 
   const renderConnections = () => {
@@ -326,26 +430,24 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
 
   const renderNodes = () => {
     return nodes.map(node => {
-      const size = getNodeSize(node);
+      const nodeSize = getNodeSize(node);
       const color = getNodeColor(node);
       const isSelected = selectedTopic?.id === node.id;
       const isRoot = node.id === 'root';
       const level = node.level ?? node.depth;
       
-      // Better text handling for long titles
-      const maxLength = size > 60 ? 25 : size > 50 ? 20 : 15;
-      const displayTitle = node.title.length > maxLength ? `${node.title.substring(0, maxLength - 3)}...` : node.title;
-      const fontSize = isRoot ? 16 : size > 60 ? 14 : size > 50 ? 12 : size > 40 ? 10 : 9;
+      // Better text handling for rectangles
+      const fontSize = isRoot ? 14 : nodeSize.width > 120 ? 12 : nodeSize.width > 100 ? 11 : 10;
       
       return (
         <div
           key={node.id}
           className="absolute group transition-all duration-300"
           style={{
-            left: node.position.x - size / 2,
-            top: node.position.y - size / 2,
-            width: size,
-            height: size,
+            left: node.position.x - nodeSize.width / 2,
+            top: node.position.y - nodeSize.height / 2,
+            width: nodeSize.width,
+            height: nodeSize.height,
             cursor: toolMode === 'select' ? 'pointer' : toolMode === 'hand' ? 'grab' : 'default'
           }}
           onClick={(e) => {
@@ -361,31 +463,35 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
             style={{
               left: 3,
               top: 3,
-              width: size,
-              height: size,
-              borderRadius: '50%',
+              width: nodeSize.width,
+              height: nodeSize.height,
+              borderRadius: '8px',
               backgroundColor: 'rgba(0,0,0,0.15)',
             }}
           />
           
-          {/* Main node circle */}
+          {/* Main node rectangle */}
           <div
-            className="absolute flex items-center justify-center text-white font-bold transition-all duration-300 group-hover:scale-110"
+            className="absolute flex items-center justify-center text-white font-medium transition-all duration-300 group-hover:scale-105"
             style={{
-              width: size,
-              height: size,
-              borderRadius: '50%',
-              background: `radial-gradient(circle at 30% 30%, ${color}, ${color}cc)`,
-              border: `${isSelected ? 4 : 2}px solid ${isSelected ? '#f3f4f6' : 'white'}`,
+              width: nodeSize.width,
+              height: nodeSize.height,
+              borderRadius: '8px',
+              background: `linear-gradient(135deg, ${color}, ${color}dd)`,
+              border: `${isSelected ? 3 : 2}px solid ${isSelected ? '#f3f4f6' : 'white'}`,
               fontSize: `${fontSize}px`,
               textAlign: 'center',
-              lineHeight: '1.2',
-              padding: '4px',
+              lineHeight: '1.3',
+              padding: '6px 8px',
               boxSizing: 'border-box',
               transformOrigin: 'center',
+              wordBreak: 'break-word',
+              hyphens: 'auto',
             }}
           >
-            {displayTitle}
+            <div className="w-full h-full flex items-center justify-center">
+              {node.title}
+            </div>
           </div>
           
           {/* Level indicator for non-root nodes */}
@@ -393,14 +499,15 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
             <div
               className="absolute flex items-center justify-center text-xs font-bold transition-all duration-300"
               style={{
-                right: 0,
-                top: 0,
-                width: 16,
-                height: 16,
+                right: -6,
+                top: -6,
+                width: 18,
+                height: 18,
                 borderRadius: '50%',
-                backgroundColor: 'rgba(255,255,255,0.9)',
+                backgroundColor: 'rgba(255,255,255,0.95)',
                 border: `2px solid ${color}`,
                 color: color,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               }}
             >
               {level}
@@ -412,18 +519,18 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
             <div
               className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50"
               style={{
-                left: -120 + size / 2,
-                top: -70,
-                width: 240,
-                height: 60,
+                left: -120 + nodeSize.width / 2,
+                top: -80,
+                width: 260,
+                minHeight: 70,
               }}
             >
               <div className="bg-gray-900 text-white text-sm px-4 py-3 rounded-lg shadow-xl border border-gray-700">
                 <div className="font-semibold text-white mb-1">{node.title}</div>
                 <div className="text-xs text-gray-300 mb-1">Level {level} • {node.children?.length ?? 0} subtopics</div>
                 {node.summary && (
-                  <div className="text-xs text-gray-400 line-clamp-2">
-                    {node.summary.length > 80 ? `${node.summary.substring(0, 80)}...` : node.summary}
+                  <div className="text-xs text-gray-400 line-clamp-3">
+                    {node.summary.length > 120 ? `${node.summary.substring(0, 120)}...` : node.summary}
                   </div>
                 )}
               </div>
