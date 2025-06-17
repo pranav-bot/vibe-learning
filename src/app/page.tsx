@@ -44,6 +44,9 @@ export default async function Home() {
             ) : (
               <div className="flex items-center space-x-4">
                 <span className="text-muted-foreground">Welcome, {user.email}</span>
+                <Button variant="ghost" asChild>
+                  <Link href="/library">Library</Link>
+                </Button>
                 <ThemeToggle />
                 <Button asChild>
                   <Link href="/dashboard">Go to Dashboard</Link>

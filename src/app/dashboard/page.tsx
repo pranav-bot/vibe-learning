@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "~/utils/supabase/server";
 import Link from "next/link";
+import { Button } from "~/components/ui/button";
 import LoginButton from "~/components/LoginLogOutButton";
 import ThemeToggle from "~/components/ThemeToggle";
 import { DashboardClient } from "./components/DashboardClient";
@@ -25,6 +26,9 @@ export default async function Dashboard() {
           <Link href="/" className="text-2xl font-bold text-foreground">Vibe Learning</Link>
         </div>
         <div className="flex items-center space-x-4">
+          <Button variant="ghost" asChild>
+            <Link href="/library">Library</Link>
+          </Button>
           <span className="text-muted-foreground">Welcome, {user.email}</span>
           <ThemeToggle />
           <LoginButton />
