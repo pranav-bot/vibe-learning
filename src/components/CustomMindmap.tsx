@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { Card } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { RotateCcw, ZoomIn, ZoomOut, Hand, MousePointer } from "lucide-react";
 import type { Roadmap, Topic } from "~/course-builder-ai/roadmap";
 
 interface CustomMindmapProps {
@@ -23,9 +25,14 @@ interface TopicNode extends Topic {
 }
 
 export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }: CustomMindmapProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes] = useState<TopicNode[]>([]);
-  const [viewBox, setViewBox] = useState({ x: 0, y: 0, width: 800, height: 600 });
+  // Initialize canvas position to center the mindmap content (which is at 5000,5000) in the viewport
+  const [position, setPosition] = useState({ x: -5000, y: -5000 });
+  const [scale, setScale] = useState(1);
+  const [toolMode, setToolMode] = useState<'select' | 'hand'>('select');
+  const isDragging = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!roadmap) return;
@@ -33,28 +40,76 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
     const calculatedNodes = calculateNodePositions(roadmap);
     setNodes(calculatedNodes);
     
-    // Calculate viewBox to fit all nodes
+    // Center the canvas on the content initially
     if (calculatedNodes.length > 0) {
-      const padding = 150;
-      const minX = Math.min(...calculatedNodes.map(n => n.position.x)) - padding;
-      const maxX = Math.max(...calculatedNodes.map(n => n.position.x)) + padding;
-      const minY = Math.min(...calculatedNodes.map(n => n.position.y)) - padding;
-      const maxY = Math.max(...calculatedNodes.map(n => n.position.y)) + padding;
-      
-      setViewBox({
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY
-      });
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      // Since mindmap is positioned at 5000,5000, we need to offset by -5000 to center it
+      setPosition({ x: centerX - 5000, y: centerY - 5000 });
     }
   }, [roadmap]);
+
+  // Canvas event handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (toolMode === 'hand' || (toolMode === 'select' && (e.target as Element).classList.contains('canvas-background'))) {
+      isDragging.current = true;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+      e.preventDefault();
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - lastMouse.current.x;
+    const dy = e.clientY - lastMouse.current.y;
+    setPosition(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+    lastMouse.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const scaleAmount = e.deltaY > 0 ? 0.95 : 1.05;
+    setScale(prev => Math.min(Math.max(prev * scaleAmount, 0.1), 5));
+  };
+
+  useEffect(() => {
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
+
+  // Control functions
+  const resetView = () => {
+    if (nodes.length > 0) {
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      // Since mindmap is positioned at 5000,5000, we need to offset by -5000 to center it
+      setPosition({ x: centerX - 5000, y: centerY - 5000 });
+      setScale(1);
+    }
+  };
+
+  const zoomIn = () => {
+    setScale(prev => Math.min(prev * 1.25, 5));
+  };
+
+  const zoomOut = () => {
+    setScale(prev => Math.max(prev * 0.8, 0.1));
+  };
 
   const calculateNodePositions = (roadmap: Roadmap): TopicNode[] => {
     const nodes: TopicNode[] = [];
     const levelRadius = [0, 250, 400, 550, 700]; // Distance from center for each level
-    const centerX = 0;
-    const centerY = 0;
+    // Position the mindmap at the center of the large canvas so it appears centered in the viewport
+    const centerX = 5000; // Half of the 10000px canvas width
+    const centerY = 5000; // Half of the 10000px canvas height
 
     // Create root node
     const rootNode: TopicNode = {
@@ -175,7 +230,7 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
     return 35; // Specialized topics
   };
 
-  const renderConnections = (): ReactElement[] => {
+  const renderConnections = () => {
     const connections: ReactElement[] = [];
     
     // Add connections from root to root topics
@@ -184,23 +239,43 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
       const rootNode = nodes.find(n => n.id === 'root');
       if (rootTopicNode && rootNode) {
         const isHighlighted = selectedTopic?.id === 'root' || selectedTopic?.id === rootTopicId;
+        const x1 = rootNode.position.x;
+        const y1 = rootNode.position.y;
+        const x2 = rootTopicNode.position.x;
+        const y2 = rootTopicNode.position.y;
+        
         connections.push(
-          <line
+          <div
             key={`root-${rootTopicId}`}
-            x1={rootNode.position.x}
-            y1={rootNode.position.y}
-            x2={rootTopicNode.position.x}
-            y2={rootTopicNode.position.y}
-            stroke={isHighlighted ? "#3b82f6" : "#6b7280"}
-            strokeWidth={isHighlighted ? 4 : 3}
-            strokeOpacity={isHighlighted ? 0.9 : 0.7}
-            className="transition-all duration-300"
-          />
+            className="absolute pointer-events-none transition-all duration-300"
+            style={{
+              left: Math.min(x1, x2),
+              top: Math.min(y1, y2),
+              width: Math.abs(x2 - x1),
+              height: Math.abs(y2 - y1),
+            }}
+          >
+            <svg
+              width="100%"
+              height="100%"
+              style={{ overflow: 'visible' }}
+            >
+              <line
+                x1={x1 < x2 ? 0 : Math.abs(x2 - x1)}
+                y1={y1 < y2 ? 0 : Math.abs(y2 - y1)}
+                x2={x1 < x2 ? Math.abs(x2 - x1) : 0}
+                y2={y1 < y2 ? Math.abs(y2 - y1) : 0}
+                stroke={isHighlighted ? "#60a5fa" : "#9ca3af"}
+                strokeWidth={isHighlighted ? 4 : 3}
+                strokeOpacity={isHighlighted ? 0.9 : 0.7}
+              />
+            </svg>
+          </div>
         );
       }
     });
     
-    // Add connections based on parent-child relationships from the roadmap data
+    // Add connections based on parent-child relationships
     roadmap.topics.forEach(topic => {
       if (topic.parentId) {
         const parentNode = nodes.find(n => n.id === topic.parentId);
@@ -208,21 +283,39 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
         
         if (parentNode && childNode) {
           const isHighlighted = selectedTopic?.id === topic.parentId || selectedTopic?.id === topic.id;
-          const strokeDashArray = topic.level > 1 ? "5,5" : "none";
+          const x1 = parentNode.position.x;
+          const y1 = parentNode.position.y;
+          const x2 = childNode.position.x;
+          const y2 = childNode.position.y;
           
           connections.push(
-            <line
+            <div
               key={`${topic.parentId}-${topic.id}`}
-              x1={parentNode.position.x}
-              y1={parentNode.position.y}
-              x2={childNode.position.x}
-              y2={childNode.position.y}
-              stroke={isHighlighted ? "#3b82f6" : "#6b7280"}
-              strokeWidth={isHighlighted ? 3 : 2}
-              strokeOpacity={isHighlighted ? 0.8 : 0.6}
-              className="transition-all duration-300"
-              strokeDasharray={strokeDashArray}
-            />
+              className="absolute pointer-events-none transition-all duration-300"
+              style={{
+                left: Math.min(x1, x2),
+                top: Math.min(y1, y2),
+                width: Math.abs(x2 - x1),
+                height: Math.abs(y2 - y1),
+              }}
+            >
+              <svg
+                width="100%"
+                height="100%"
+                style={{ overflow: 'visible' }}
+              >
+                <line
+                  x1={x1 < x2 ? 0 : Math.abs(x2 - x1)}
+                  y1={y1 < y2 ? 0 : Math.abs(y2 - y1)}
+                  x2={x1 < x2 ? Math.abs(x2 - x1) : 0}
+                  y2={y1 < y2 ? Math.abs(y2 - y1) : 0}
+                  stroke={isHighlighted ? "#60a5fa" : "#9ca3af"}
+                  strokeWidth={isHighlighted ? 3 : 2}
+                  strokeOpacity={isHighlighted ? 0.8 : 0.6}
+                  strokeDasharray={topic.level > 1 ? "5,5" : "none"}
+                />
+              </svg>
+            </div>
           );
         }
       }
@@ -242,200 +335,247 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
       // Better text handling for long titles
       const maxLength = size > 60 ? 25 : size > 50 ? 20 : 15;
       const displayTitle = node.title.length > maxLength ? `${node.title.substring(0, maxLength - 3)}...` : node.title;
-      const fontSize = isRoot ? "16" : size > 60 ? "14" : size > 50 ? "12" : size > 40 ? "10" : "9";
+      const fontSize = isRoot ? 16 : size > 60 ? 14 : size > 50 ? 12 : size > 40 ? 10 : 9;
       
       return (
-        <g key={node.id} className="cursor-pointer group">
-          {/* Drop shadow for nodes */}
-          <circle
-            cx={node.position.x + 3}
-            cy={node.position.y + 3}
-            r={size / 2}
-            fill="rgba(0,0,0,0.15)"
-            className="transition-all duration-300"
+        <div
+          key={node.id}
+          className="absolute group transition-all duration-300"
+          style={{
+            left: node.position.x - size / 2,
+            top: node.position.y - size / 2,
+            width: size,
+            height: size,
+            cursor: toolMode === 'select' ? 'pointer' : toolMode === 'hand' ? 'grab' : 'default'
+          }}
+          onClick={(e) => {
+            if (toolMode === 'select') {
+              e.stopPropagation();
+              onTopicSelect(node);
+            }
+          }}
+        >
+          {/* Drop shadow */}
+          <div
+            className="absolute transition-all duration-300"
+            style={{
+              left: 3,
+              top: 3,
+              width: size,
+              height: size,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(0,0,0,0.15)',
+            }}
           />
           
-          {/* Node circle with gradient */}
-          <defs>
-            <radialGradient id={`gradient-${node.id}`} cx="30%" cy="30%">
-              <stop offset="0%" stopColor={color} stopOpacity="1" />
-              <stop offset="100%" stopColor={color} stopOpacity="0.8" />
-            </radialGradient>
-          </defs>
-          
-          <circle
-            cx={node.position.x}
-            cy={node.position.y}
-            r={size / 2}
-            fill={`url(#gradient-${node.id})`}
-            stroke={isSelected ? '#1f2937' : 'white'}
-            strokeWidth={isSelected ? 4 : 2}
-            className="transition-all duration-300 group-hover:stroke-gray-800 group-hover:stroke-4 group-hover:scale-110"
-            onClick={() => onTopicSelect(node)}
-            style={{ transformOrigin: `${node.position.x}px ${node.position.y}px` }}
-          />
+          {/* Main node circle */}
+          <div
+            className="absolute flex items-center justify-center text-white font-bold transition-all duration-300 group-hover:scale-110"
+            style={{
+              width: size,
+              height: size,
+              borderRadius: '50%',
+              background: `radial-gradient(circle at 30% 30%, ${color}, ${color}cc)`,
+              border: `${isSelected ? 4 : 2}px solid ${isSelected ? '#f3f4f6' : 'white'}`,
+              fontSize: `${fontSize}px`,
+              textAlign: 'center',
+              lineHeight: '1.2',
+              padding: '4px',
+              boxSizing: 'border-box',
+              transformOrigin: 'center',
+            }}
+          >
+            {displayTitle}
+          </div>
           
           {/* Level indicator for non-root nodes */}
           {!isRoot && (
-            <circle
-              cx={node.position.x + size/3}
-              cy={node.position.y - size/3}
-              r="8"
-              fill="rgba(255,255,255,0.9)"
-              stroke={color}
-              strokeWidth="2"
-              className="transition-all duration-300"
-            />
-          )}
-          
-          {/* Level number */}
-          {!isRoot && (
-            <text
-              x={node.position.x + size/3}
-              y={node.position.y - size/3}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={color}
-              fontSize="10"
-              fontWeight="bold"
-              className="pointer-events-none select-none"
+            <div
+              className="absolute flex items-center justify-center text-xs font-bold transition-all duration-300"
+              style={{
+                right: 0,
+                top: 0,
+                width: 16,
+                height: 16,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                border: `2px solid ${color}`,
+                color: color,
+              }}
             >
               {level}
-            </text>
+            </div>
           )}
           
-          {/* Node text */}
-          <text
-            x={node.position.x}
-            y={node.position.y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="white"
-            fontSize={fontSize}
-            fontWeight="bold"
-            className="pointer-events-none select-none transition-all duration-300 drop-shadow-sm"
-            onClick={() => onTopicSelect(node)}
-          >
-            {displayTitle}
-          </text>
-          
-          {/* Enhanced hover tooltip */}
-          <foreignObject
-            x={node.position.x - 120}
-            y={node.position.y - size/2 - 70}
-            width="240"
-            height="60"
-            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-          >
-            <div className="bg-gray-900 text-white text-sm px-4 py-3 rounded-lg shadow-xl border border-gray-700">
-              <div className="font-semibold text-white mb-1">{node.title}</div>
-              <div className="text-xs text-gray-300 mb-1">Level {level} • {node.children?.length ?? 0} subtopics</div>
-              {node.summary && (
-                <div className="text-xs text-gray-400 line-clamp-2">
-                  {node.summary.length > 80 ? `${node.summary.substring(0, 80)}...` : node.summary}
-                </div>
-              )}
+          {/* Tooltip */}
+          {toolMode === 'select' && (
+            <div
+              className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50"
+              style={{
+                left: -120 + size / 2,
+                top: -70,
+                width: 240,
+                height: 60,
+              }}
+            >
+              <div className="bg-gray-900 text-white text-sm px-4 py-3 rounded-lg shadow-xl border border-gray-700">
+                <div className="font-semibold text-white mb-1">{node.title}</div>
+                <div className="text-xs text-gray-300 mb-1">Level {level} • {node.children?.length ?? 0} subtopics</div>
+                {node.summary && (
+                  <div className="text-xs text-gray-400 line-clamp-2">
+                    {node.summary.length > 80 ? `${node.summary.substring(0, 80)}...` : node.summary}
+                  </div>
+                )}
+              </div>
             </div>
-          </foreignObject>
-        </g>
+          )}
+        </div>
       );
     });
   };
 
   return (
-    <div className="w-full h-[700px] border rounded-lg bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-800 overflow-hidden relative">
+    <div className="w-full h-full bg-black overflow-hidden relative">
       {/* Animated background pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.2),transparent_50%)]"></div>
       </div>
+      
       {/* Legend */}
       <div className="absolute top-4 left-4 z-10">
-        <Card className="p-3 shadow-lg">
+        <Card className="p-3 shadow-lg bg-gray-900/95 border-gray-700 backdrop-blur-sm">
           <div className="space-y-2">
-            <div className="text-xs font-medium text-gray-600 dark:text-gray-300">Learning Path Levels</div>
+            <div className="text-xs font-medium text-gray-200">Learning Path Levels</div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-              <span className="text-xs">Main Topic</span>
+              <span className="text-xs text-gray-300">Main Topic</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <span className="text-xs">Level 0 - Foundation</span>
+              <span className="text-xs text-gray-300">Level 0 - Foundation</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <span className="text-xs">Level 1 - Core Skills</span>
+              <span className="text-xs text-gray-300">Level 1 - Core Skills</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <span className="text-xs">Level 2 - Advanced</span>
+              <span className="text-xs text-gray-300">Level 2 - Advanced</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 rounded-full bg-violet-500"></div>
-              <span className="text-xs">Level 3+ - Specialized</span>
+              <span className="text-xs text-gray-300">Level 3+ - Specialized</span>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Difficulty badge */}
-      <div className="absolute top-4 right-4 z-10">
-        <Badge variant="outline" className="bg-white/90 dark:bg-slate-800/90">
+      {/* Control Panel */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2">
+        <Badge variant="outline" className="bg-gray-900/95 border-gray-700 text-gray-200 backdrop-blur-sm">
           {roadmap.difficulty}
         </Badge>
+        <Card className="p-2 shadow-lg bg-gray-900/95 border-gray-700 backdrop-blur-sm">
+          <div className="flex flex-col space-y-1">
+            {/* Tool Mode Toggle */}
+            <div className="flex space-x-1 mb-2 p-1 bg-gray-800/50 rounded">
+              <Button
+                variant={toolMode === 'select' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setToolMode('select')}
+                className="h-6 w-6 p-0 text-xs"
+                title="Select Tool"
+              >
+                <MousePointer className="h-3 w-3" />
+              </Button>
+              <Button
+                variant={toolMode === 'hand' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setToolMode('hand')}
+                className="h-6 w-6 p-0 text-xs"
+                title="Hand Tool (Drag to Pan)"
+              >
+                <Hand className="h-3 w-3" />
+              </Button>
+            </div>
+            
+            {/* Zoom Controls */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetView}
+              className="h-8 w-8 p-0 hover:bg-gray-700 text-gray-300"
+              title="Reset View"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={zoomIn}
+              className="h-8 w-8 p-0 hover:bg-gray-700 text-gray-300"
+              title="Zoom In"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={zoomOut}
+              className="h-8 w-8 p-0 hover:bg-gray-700 text-gray-300"
+              title="Zoom Out"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </Card>
       </div>
 
-      {/* SVG Mindmap */}
-      <svg
-        ref={svgRef}
-        width="100%"
-        height="100%"
-        viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-        className="transition-all duration-500"
-        style={{ cursor: 'grab' }}
+      {/* Infinite Canvas */}
+      <div
+        className="canvas-background absolute inset-0"
+        onMouseDown={handleMouseDown}
+        onWheel={handleWheel}
+        style={{
+          cursor: isDragging.current ? 'grabbing' : toolMode === 'hand' ? 'grab' : 'default',
+          overflow: 'hidden',
+        }}
       >
-        {/* Background grid */}
-        <defs>
-          <pattern
-            id="grid"
-            width="50"
-            height="50"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M 50 0 L 0 0 0 50"
-              fill="none"
-              stroke="#e5e7eb"
-              strokeOpacity="0.3"
-              strokeWidth="1"
-            />
-          </pattern>
-        </defs>
-        <rect
-          x={viewBox.x}
-          y={viewBox.y}
-          width={viewBox.width}
-          height={viewBox.height}
-          fill="url(#grid)"
-        />
-        
-        {/* Render connections first (behind nodes) */}
-        {renderConnections()}
-        
-        {/* Render nodes */}
-        {renderNodes()}
-      </svg>
+        <div
+          ref={canvasRef}
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            transformOrigin: '0 0',
+            position: 'relative',
+            width: '10000px',
+            height: '10000px',
+            backgroundImage: `
+              linear-gradient(rgba(107, 114, 128, 0.4) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(107, 114, 128, 0.4) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px',
+            backgroundPosition: '0 0, 0 0',
+          }}
+        >
+          {/* Render connections */}
+          {renderConnections()}
+          
+          {/* Render nodes */}
+          {renderNodes()}
+        </div>
+      </div>
 
       {/* Instructions and Stats */}
       <div className="absolute bottom-4 left-4 z-10">
-        <Card className="p-3 shadow-lg">
+        <Card className="p-3 shadow-lg bg-gray-900/95 border-gray-700 backdrop-blur-sm">
           <div className="space-y-1">
-            <div className="text-xs text-gray-600 dark:text-gray-300">
-              Click any node to see details • {nodes.length - 1} learning topics
+            <div className="text-xs text-gray-300">
+              {toolMode === 'select' ? 'Click nodes to see details • Use hand tool to drag canvas' : 'Drag to pan the canvas • Switch to select tool to click nodes'} • Scroll to zoom
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-gray-400">
               Foundation: {roadmap.topics.filter(t => t.level === 0).length} • 
               Core: {roadmap.topics.filter(t => t.level === 1).length} • 
-              Advanced: {roadmap.topics.filter(t => t.level >= 2).length}
+              Advanced: {roadmap.topics.filter(t => t.level >= 2).length} topics
             </div>
           </div>
         </Card>
