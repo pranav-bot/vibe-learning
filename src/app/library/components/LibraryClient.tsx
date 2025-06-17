@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import ThemeToggle from "~/components/ThemeToggle";
 import LoginButton from "~/components/LoginLogOutButton";
+import DifficultyDialog from "~/components/DifficultyDialog";
 import { type ContentType } from "~/components/ContentUploader";
 
 // Mock data - in real app this would come from your backend
@@ -129,6 +130,8 @@ export default function LibraryClient() {
   const [selectedLevel, setSelectedLevel] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
+  const [difficultyDialogOpen, setDifficultyDialogOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
   // Filter courses based on search and filters
   const filteredCourses = courses.filter(course => {
@@ -159,10 +162,18 @@ export default function LibraryClient() {
     }
   };
 
+  const handleCourseClick = (course: Course) => {
+    setSelectedCourse(course);
+    setDifficultyDialogOpen(true);
+  };
+
   const CourseCard = ({ course, isLarge = false }: { course: Course; isLarge?: boolean }) => (
-    <Card className={`group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg ${
-      isLarge ? 'col-span-2 row-span-2' : ''
-    }`}>
+    <Card 
+      className={`group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg ${
+        isLarge ? 'col-span-2 row-span-2' : ''
+      }`}
+      onClick={() => handleCourseClick(course)}
+    >
       <div className="relative overflow-hidden rounded-t-lg">
         <Image 
           src={course.thumbnail} 
@@ -451,6 +462,18 @@ export default function LibraryClient() {
           </div>
         )}
       </main>
+
+      {/* Difficulty Dialog */}
+      {selectedCourse && (
+        <DifficultyDialog
+          isOpen={difficultyDialogOpen}
+          onClose={() => {
+            setDifficultyDialogOpen(false);
+            setSelectedCourse(null);
+          }}
+          courseTitle={selectedCourse.title}
+        />
+      )}
     </div>
   );
 }

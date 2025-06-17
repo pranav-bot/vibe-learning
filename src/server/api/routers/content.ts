@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import topicExtractor from "~/commands-ai/topic-extractor";
 import explain from "~/commands-ai/explain";
-import llms from "~/commands-ai/llms";
+import llms from "~/lib/llms";
 
 // Define the input structure that matches the Python backend response
 const ContentInput = z.object({
