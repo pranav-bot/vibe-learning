@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { generateRoadmap } from "~/course-builder-ai/roadmap";
+import { youtubeResources } from "~/course-builder-ai/resources";
 import llms from "~/lib/llms";
 
 export const roadmapRouter = createTRPCRouter({
@@ -67,6 +68,51 @@ export const roadmapRouter = createTRPCRouter({
         }
         
         throw new Error(`Failed to generate roadmap: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  youtubeResources: publicProcedure
+    .input(z.object({
+      topic: z.string(),
+      difficulty: z.enum(["beginner", "intermediate", "advanced"]),
+      topicSummary: z.string()
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        console.log(`🎥 Starting YouTube resources fetch for topic: ${input.topic}`);
+        console.log(`🎚️ Difficulty: ${input.difficulty}`);
+        
+        // Use gemini model for resource selection
+        const model = llms.gemini("gemini-1.5-flash");
+        
+        const resources = await youtubeResources(
+          input.topic,
+          input.difficulty,
+          input.topicSummary,
+          model
+        );
+        
+        console.log(`✅ YouTube resources fetched successfully`);
+        console.log(`📺 Found ${resources.selectedVideos.length} relevant videos`);
+        
+        return {
+          success: true,
+          data: resources
+        };
+        
+      } catch (error) {
+        console.error("❌ Error fetching YouTube resources:", error);
+        
+        if (error instanceof Error) {
+          if (error.message.includes("YouTube API key not found")) {
+            throw new Error("YouTube API is not configured. Please contact the administrator.");
+          }
+          if (error.message.includes("No YouTube videos found")) {
+            throw new Error("No relevant videos found for this topic. Try a different search term.");
+          }
+        }
+        
+        throw new Error(`Failed to fetch YouTube resources: ${error instanceof Error ? error.message : String(error)}`);
       }
     }),
 });
