@@ -392,7 +392,26 @@ export default function MapClient() {
                                 <div className="flex-1 min-w-0 space-y-1">
                                   <h4 
                                     className="font-medium text-sm line-clamp-2 cursor-pointer hover:text-blue-600 hover:underline transition-colors"
-                                    onClick={() => window.open(video.url, '_blank')}
+                                    onClick={() => {
+                                      // Create a special contentId for YouTube videos
+                                      const contentId = `youtube_${video.videoId}`;
+                                      
+                                      // Store video data in localStorage for the learn page
+                                      const contentData = {
+                                        content_id: contentId,
+                                        content_type: 'youtube' as const,
+                                        title: video.title,
+                                        url: video.url,
+                                        text_length: video.description?.length ?? 0,
+                                        text_preview: video.description?.substring(0, 200) ?? '',
+                                        status: 'completed'
+                                      };
+                                      
+                                      localStorage.setItem(`content_${contentId}`, JSON.stringify(contentData));
+                                      
+                                      // Navigate to learn page
+                                      window.open(`/learn/${contentId}`, '_blank');
+                                    }}
                                   >
                                     {video.title}
                                   </h4>
