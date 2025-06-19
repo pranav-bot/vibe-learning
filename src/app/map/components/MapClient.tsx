@@ -315,6 +315,19 @@ export default function MapClient() {
                       </div>
                     </div>
                   )}
+                  
+                  <div className="pt-2">
+                    <Button 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => {
+                        // TODO: Implement fetch resources functionality
+                        console.log('Fetching resources for:', selectedTopic.title);
+                      }}
+                    >
+                      Fetch Resources
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center text-muted-foreground">
