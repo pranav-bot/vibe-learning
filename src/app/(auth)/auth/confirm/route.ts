@@ -2,6 +2,28 @@ import { type EmailOtpType } from '@supabase/supabase-js'
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { createClient } from '~/utils/supabase/server'
+import { db } from '~/server/db'
+
+async function createOrUpdateProfile(userId: string, email: string, fullName?: string, avatarUrl?: string) {
+  try {
+    await db.profile.upsert({
+      where: { id: userId },
+      update: {
+        email,
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      },
+      create: {
+        id: userId,
+        email,
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating/updating profile:", error);
+  }
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -21,21 +43,37 @@ export async function GET(request: NextRequest) {
 
   // Handle OAuth callback (Google, etc.)
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (!error) {
+    if (!error && data.user) {
+      // Create or update profile after successful OAuth login
+      await createOrUpdateProfile(
+        data.user.id,
+        data.user.email!,
+        data.user.user_metadata?.full_name as string | undefined,
+        data.user.user_metadata?.avatar_url as string | undefined
+      );
+      
       return NextResponse.redirect(redirectTo)
     }
   }
 
   // Handle email verification
   if (token_hash && type) {
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash,
     })
     
-    if (!error) {
+    if (!error && data.user) {
+      // Create or update profile after successful email verification
+      await createOrUpdateProfile(
+        data.user.id,
+        data.user.email!,
+        data.user.user_metadata?.full_name as string | undefined,
+        data.user.user_metadata?.avatar_url as string | undefined
+      );
+      
       return NextResponse.redirect(redirectTo)
     }
   }

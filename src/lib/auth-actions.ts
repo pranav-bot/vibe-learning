@@ -4,6 +4,28 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "~/utils/supabase/server";
+import { db } from "~/server/db";
+
+async function createOrUpdateProfile(userId: string, email: string, fullName?: string, avatarUrl?: string) {
+  try {
+    await db.profile.upsert({
+      where: { id: userId },
+      update: {
+        email,
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      },
+      create: {
+        id: userId,
+        email,
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating/updating profile:", error);
+  }
+}
 
 export async function login(formData: FormData) {
   const supabase = createClient();
@@ -15,10 +37,20 @@ export async function login(formData: FormData) {
     password: formData.get("password") as string,
   };
 
-  const { error } = await supabase.auth.signInWithPassword(data);
+  const { data: authData, error } = await supabase.auth.signInWithPassword(data);
 
   if (error) {
     redirect("/error");
+  }
+
+  // Create or update profile in database after successful login
+  if (authData.user) {
+    await createOrUpdateProfile(
+      authData.user.id,
+      authData.user.email!,
+      authData.user.user_metadata?.full_name as string | undefined,
+      authData.user.user_metadata?.avatar_url as string | undefined
+    );
   }
 
   revalidatePath("/", "layout");
@@ -33,21 +65,33 @@ export async function signup(formData: FormData) {
   // in practice, you should validate your inputs
   const firstName = formData.get("first-name") as string;
   const lastName = formData.get("last-name") as string;
+  const email = formData.get("email") as string;
+  const fullName = `${firstName} ${lastName}`;
+  
   const data = {
-    email: formData.get("email") as string,
+    email,
     password: formData.get("password") as string,
     options: {
       data: {
-        full_name: `${firstName + " " + lastName}`,
-        email: formData.get("email") as string,
+        full_name: fullName,
+        email,
       },
     },
   };
 
-  const { error } = await supabase.auth.signUp(data);
+  const { data: authData, error } = await supabase.auth.signUp(data);
 
   if (error) {
     redirect("/error");
+  }
+
+  // Create profile in database after successful signup
+  if (authData.user) {
+    await createOrUpdateProfile(
+      authData.user.id,
+      email,
+      fullName
+    );
   }
 
   revalidatePath("/", "layout");

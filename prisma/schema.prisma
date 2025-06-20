@@ -18,3 +18,54 @@ model Post {
 
     @@index([name])
 }
+
+model Profile {
+    id         String    @id @db.Uuid
+    full_name  String?
+    email      String?   @unique
+    avatar_url String?
+    
+    // Relations
+    roadmaps   Roadmap[]
+
+    @@map("profiles")
+}
+
+model Roadmap {
+    id          String   @id @default(cuid())
+    title       String
+    description String
+    difficulty  String   // "beginner", "intermediate", "advanced"
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    
+    // Foreign key to profile
+    profileId   String?  @db.Uuid
+    profile     Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    
+    // Relations
+    topics      Topic[]
+    
+    @@map("roadmaps")
+}
+
+model Topic {
+    id        String  @id
+    title     String
+    summary   String
+    level     Int
+    parentId  String?
+    
+    // Foreign key to roadmap
+    roadmapId String
+    roadmap   Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+    
+    // Self-referential relations for parent-child
+    parent    Topic?  @relation("TopicHierarchy", fields: [parentId], references: [id])
+    children  Topic[] @relation("TopicHierarchy")
+    
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    
+    @@map("topics")
+}
