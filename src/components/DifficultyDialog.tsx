@@ -14,6 +14,7 @@ import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { Slider } from "~/components/ui/slider";
 import { Badge } from "~/components/ui/badge";
+import { api } from "~/trpc/react";
 
 interface DifficultyDialogProps {
   isOpen: boolean;
@@ -29,46 +30,90 @@ const DIFFICULTY_LEVELS = [
 
 export default function DifficultyDialog({ isOpen, onClose, courseTitle }: DifficultyDialogProps) {
   const [difficultyValue, setDifficultyValue] = useState([0]);
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const router = useRouter();
 
   const currentDifficulty = DIFFICULTY_LEVELS[difficultyValue[0] ?? 0]!;
 
+  // tRPC mutation for generating roadmap
+  const generateRoadmapMutation = api.roadmap.generate.useMutation({
+    onSuccess: async (data) => {
+      console.log("🎉 Roadmap generation success:", data.data);
+      
+      // Save the roadmap to database
+      try {
+        const saveResult = await saveRoadmapMutation.mutateAsync({
+          roadmap: data.data
+        });
+        
+        console.log("💾 Roadmap saved successfully:", saveResult.data);
+        
+        // Navigate to map page with the saved roadmap ID
+        router.push(`/map?roadmapId=${saveResult.data.id}`);
+        
+        // Close dialog and reset state
+        setTimeout(() => {
+          setIsGenerating(false);
+          onClose();
+        }, 500);
+        
+      } catch (saveError) {
+        console.error("❌ Error saving roadmap:", saveError);
+        // Even if save fails, we can still navigate with the generated roadmap
+        const params = new URLSearchParams({
+          topic: courseTitle,
+          difficulty: currentDifficulty.label,
+          autoGenerate: "true"
+        });
+        router.push(`/map?${params.toString()}`);
+        
+        setTimeout(() => {
+          setIsGenerating(false);
+          onClose();
+        }, 500);
+      }
+    },
+    onError: (error) => {
+      console.error("❌ Error generating roadmap:", error);
+      setIsGenerating(false);
+    }
+  });
+
+  // tRPC mutation for saving roadmap
+  const saveRoadmapMutation = api.roadmap.save.useMutation();
+
   // Listen for route changes to close dialog when navigation completes
   useEffect(() => {
-    if (isNavigating) {
+    if (isGenerating) {
       const handleRouteChange = () => {
         // Small delay to ensure the new page has loaded
         setTimeout(() => {
-          setIsNavigating(false);
+          setIsGenerating(false);
           onClose();
         }, 500);
       };
 
       // Since we can't directly listen to Next.js router events in app router,
       // we'll use a timeout as fallback
-      const timeout = setTimeout(handleRouteChange, 1000);
+      const timeout = setTimeout(handleRouteChange, 3000); // Increased timeout for generation
       
       return () => clearTimeout(timeout);
     }
-  }, [isNavigating, onClose]);
+  }, [isGenerating, onClose]);
 
   const handleGo = () => {
-    setIsNavigating(true);
+    setIsGenerating(true);
     
-    // Navigate to map page with query parameters
-    const params = new URLSearchParams({
+    // Generate roadmap using tRPC mutation
+    generateRoadmapMutation.mutate({
       topic: courseTitle,
-      difficulty: currentDifficulty.label,
-      autoGenerate: "true"
+      difficulty: currentDifficulty.label
     });
-    
-    router.push(`/map?${params.toString()}`);
   };
 
-  // Reset navigation state when dialog closes
+  // Reset generation state when dialog closes
   const handleClose = () => {
-    setIsNavigating(false);
+    setIsGenerating(false);
     onClose();
   };
 
@@ -82,71 +127,89 @@ export default function DifficultyDialog({ isOpen, onClose, courseTitle }: Diffi
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Difficulty Slider */}
-          <div className="space-y-4">
-            <Label className="text-base font-medium">Difficulty Level</Label>
-            <div className="px-2">
-              <Slider
-                value={difficultyValue}
-                onValueChange={setDifficultyValue}
-                max={2}
-                min={0}
-                step={1}
-                className="w-full"
-              />
-            </div>
-            
-            {/* Difficulty Labels */}
-            <div className="flex justify-between text-xs text-muted-foreground px-2">
-              <span>Beginner</span>
-              <span>Intermediate</span>
-              <span>Advanced</span>
+        {/* Show loading content when generating */}
+        {isGenerating ? (
+          <div className="space-y-6 py-8">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold">Generating Your Roadmap</h3>
+                <p className="text-sm text-muted-foreground">
+                  Creating a personalized learning path for <strong>{courseTitle}</strong>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  This may take a moment...
+                </p>
+              </div>
             </div>
           </div>
+        ) : (
+          <div className="space-y-6 py-4">
+            {/* Difficulty Slider */}
+            <div className="space-y-4">
+              <Label className="text-base font-medium">Difficulty Level</Label>
+              <div className="px-2">
+                <Slider
+                  value={difficultyValue}
+                  onValueChange={setDifficultyValue}
+                  max={2}
+                  min={0}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+              
+              {/* Difficulty Labels */}
+              <div className="flex justify-between text-xs text-muted-foreground px-2">
+                <span>Beginner</span>
+                <span>Intermediate</span>
+                <span>Advanced</span>
+              </div>
+            </div>
 
-          {/* Current Selection Display */}
-          <div className="text-center space-y-2">
-            <Badge variant="secondary" className="text-lg px-4 py-2">
-              {currentDifficulty.display}
-            </Badge>
-            <p className="text-sm text-muted-foreground">
-              {currentDifficulty.description}
-            </p>
-          </div>
+            {/* Current Selection Display */}
+            <div className="text-center space-y-2">
+              <Badge variant="secondary" className="text-lg px-4 py-2">
+                {currentDifficulty.display}
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                {currentDifficulty.description}
+              </p>
+            </div>
 
-          {/* Level Descriptions */}
-          <div className="space-y-2 text-sm">
-            <div className={`p-3 rounded-lg border ${
-              difficultyValue[0] === 0 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
-            }`}>
-              <div className="font-medium">Beginner</div>
-              <div className="text-muted-foreground">Start from the basics with foundational concepts</div>
-            </div>
-            <div className={`p-3 rounded-lg border ${
-              difficultyValue[0] === 1 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
-            }`}>
-              <div className="font-medium">Intermediate</div>
-              <div className="text-muted-foreground">Build on existing knowledge with practical applications</div>
-            </div>
-            <div className={`p-3 rounded-lg border ${
-              difficultyValue[0] === 2 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
-            }`}>
-              <div className="font-medium">Advanced</div>
-              <div className="text-muted-foreground">Deep dive into complex topics and advanced techniques</div>
+            {/* Level Descriptions */}
+            <div className="space-y-2 text-sm">
+              <div className={`p-3 rounded-lg border ${
+                difficultyValue[0] === 0 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+              }`}>
+                <div className="font-medium">Beginner</div>
+                <div className="text-muted-foreground">Start from the basics with foundational concepts</div>
+              </div>
+              <div className={`p-3 rounded-lg border ${
+                difficultyValue[0] === 1 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+              }`}>
+                <div className="font-medium">Intermediate</div>
+                <div className="text-muted-foreground">Build on existing knowledge with practical applications</div>
+              </div>
+              <div className={`p-3 rounded-lg border ${
+                difficultyValue[0] === 2 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+              }`}>
+                <div className="font-medium">Advanced</div>
+                <div className="text-muted-foreground">Deep dive into complex topics and advanced techniques</div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <DialogFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleClose} disabled={isNavigating}>
+          <Button variant="outline" onClick={handleClose} disabled={isGenerating}>
             Cancel
           </Button>
-          <Button onClick={handleGo} className="px-8" disabled={isNavigating}>
-            {isNavigating ? (
+          <Button onClick={handleGo} className="px-8" disabled={isGenerating}>
+            {isGenerating ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Loading Roadmap...
+                Generating Roadmap...
               </>
             ) : (
               "Generate Roadmap"

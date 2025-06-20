@@ -12,25 +12,18 @@ import {
 import Link from "next/link";
 import ThemeToggle from "~/components/ThemeToggle";
 import LoginButton from "~/components/LoginLogOutButton";
+import DifficultyDialog from "~/components/DifficultyDialog";
 
 export default function LibraryClient() {
   const [topicName, setTopicName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topicName.trim()) return;
     
-    setIsLoading(true);
-    // TODO: Handle topic submission logic here
-    console.log('Learning topic:', topicName);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Reset form or navigate to learning content
-      setTopicName('');
-    }, 1000);
+    // Show difficulty dialog instead of handling submission here
+    setShowDifficultyDialog(true);
   };
 
   return (
@@ -86,7 +79,6 @@ export default function LibraryClient() {
                   value={topicName}
                   onChange={(e) => setTopicName(e.target.value)}
                   className="text-lg py-3"
-                  disabled={isLoading}
                 />
               </div>
               
@@ -94,19 +86,10 @@ export default function LibraryClient() {
                 type="submit" 
                 size="lg" 
                 className="w-full flex items-center gap-2"
-                disabled={!topicName.trim() || isLoading}
+                disabled={!topicName.trim()}
               >
-                {isLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Creating Learning Path...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-5 w-5" />
-                    Start Learning
-                  </>
-                )}
+                <Send className="h-5 w-5" />
+                Start Learning
               </Button>
             </form>
           </Card>
@@ -131,7 +114,6 @@ export default function LibraryClient() {
                   variant="outline"
                   size="sm"
                   onClick={() => setTopicName(topic)}
-                  disabled={isLoading}
                   className="text-xs"
                 >
                   {topic}
@@ -141,6 +123,16 @@ export default function LibraryClient() {
           </div>
         </div>
       </main>
+
+      {/* Difficulty Dialog */}
+      <DifficultyDialog
+        isOpen={showDifficultyDialog}
+        onClose={() => {
+          setShowDifficultyDialog(false);
+          setTopicName(''); // Reset topic name when dialog is closed
+        }}
+        courseTitle={topicName}
+      />
     </div>
   );
 }

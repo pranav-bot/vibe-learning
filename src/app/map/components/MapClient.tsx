@@ -99,11 +99,29 @@ export default function MapClient() {
     }
   });
 
+  // tRPC query for loading roadmap by ID
+  const roadmapId = searchParams.get('roadmapId');
+  const loadRoadmapQuery = api.roadmap.getRoadmapById.useQuery(
+    { id: roadmapId! },
+    { 
+      enabled: !!roadmapId
+    }
+  );
+
+  // Handle successful roadmap loading
+  useEffect(() => {
+    if (loadRoadmapQuery.data?.success) {
+      console.log("📖 Roadmap loaded from database:", loadRoadmapQuery.data.data);
+      setRoadmap(loadRoadmapQuery.data.data.roadmap);
+    }
+  }, [loadRoadmapQuery.data]);
+
   // Initialize from URL parameters and localStorage
   useEffect(() => {
     const urlTopic = searchParams.get('topic');
     const urlDifficulty = searchParams.get('difficulty');
     const autoGenerate = searchParams.get('autoGenerate');
+    const roadmapId = searchParams.get('roadmapId');
 
     if (urlTopic) {
       setTopic(urlTopic);
@@ -113,7 +131,14 @@ export default function MapClient() {
       setDifficulty(urlDifficulty as "beginner" | "intermediate" | "advanced");
     }
 
-    // Load roadmap from localStorage if no URL parameters
+    // If roadmapId is provided, don't load from localStorage or auto-generate
+    // The query hook will handle loading the roadmap from database
+    if (roadmapId) {
+      console.log("🔍 Loading roadmap from database with ID:", roadmapId);
+      return;
+    }
+
+    // Load roadmap from localStorage if no URL parameters and no roadmapId
     if (!urlTopic && !autoGenerate) {
       try {
         const savedRoadmap = localStorage.getItem('currentRoadmap');
@@ -162,16 +187,20 @@ export default function MapClient() {
     return roadmap.topics.filter(topic => topic.level === level);
   };
 
-  // Show full-page loading state while generating roadmap
+  // Show full-page loading state while generating roadmap or loading from database
   console.log("🔍 Checking loading state:", {
     isPending: generateRoadmapMutation.isPending,
     isGeneratingFromUrl,
+    isLoadingRoadmap: loadRoadmapQuery.isLoading,
     hasRoadmap: !!roadmap,
-    roadmapTitle: roadmap?.title
+    roadmapTitle: roadmap?.title,
+    roadmapId: searchParams.get('roadmapId')
   });
   
-  // Only show loading if we don't have a roadmap yet AND we're either pending or generating from URL
-  if (!roadmap && (generateRoadmapMutation.isPending || isGeneratingFromUrl)) {
+  // Show loading if we don't have a roadmap yet AND we're either:
+  // 1. Generating a new roadmap (pending or generating from URL)
+  // 2. Loading an existing roadmap from database
+  if (!roadmap && (generateRoadmapMutation.isPending || isGeneratingFromUrl || loadRoadmapQuery.isLoading)) {
     console.log("🔄 Showing loading state");
     return (
       <div className="container mx-auto p-6">
@@ -277,6 +306,35 @@ export default function MapClient() {
               >
                 Try Again
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Error loading roadmap from database */}
+      {loadRoadmapQuery.isError && (
+        <div className="container mx-auto px-6">
+          <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+            <CardHeader>
+              <CardTitle className="text-red-800 dark:text-red-200">Error Loading Roadmap</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-red-700 dark:text-red-300">
+                {loadRoadmapQuery.error?.message ?? "Failed to load the requested roadmap. It may have been deleted or you don't have access to it."}
+              </p>
+              <div className="flex gap-2 mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => loadRoadmapQuery.refetch()}
+                >
+                  Try Again
+                </Button>
+                <Link href="/library">
+                  <Button variant="outline">
+                    Back to Library
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>
