@@ -194,16 +194,15 @@ export const roadmapRouter = createTRPCRouter({
     }),
 
   getUserRoadmaps: publicProcedure
-    .input(z.object({
-      profileId: z.string().optional()
-    }))
-    .query(async ({ input }) => {
+    .input(z.object({}))
+    .query(async ({ ctx }) => {
       try {
-        console.log(`📚 Retrieving roadmaps for profile: ${input.profileId ?? 'anonymous'}`);
+        const profileId = ctx.user?.id ?? null;
+        console.log(`📚 Retrieving roadmaps for profile: ${profileId ?? 'anonymous'}`);
         
         const roadmaps = await db.roadmap.findMany({
           where: {
-            profileId: input.profileId ?? null
+            profileId: profileId
           },
           include: {
             topics: {

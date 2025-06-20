@@ -4,19 +4,28 @@ import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
+import { Badge } from "~/components/ui/badge";
+import { Skeleton } from "~/components/ui/skeleton";
 import { 
   BookOpen,
   ArrowLeft,
-  Send
+  Send,
+  Calendar,
+  Layers,
+  ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import ThemeToggle from "~/components/ThemeToggle";
 import LoginButton from "~/components/LoginLogOutButton";
 import DifficultyDialog from "~/components/DifficultyDialog";
+import { api } from "~/trpc/react";
 
 export default function LibraryClient() {
   const [topicName, setTopicName] = useState('');
   const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
+
+  // Fetch user's previously generated roadmaps
+  const userRoadmapsQuery = api.roadmap.getUserRoadmaps.useQuery({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,36 +100,101 @@ export default function LibraryClient() {
                 <Send className="h-5 w-5" />
                 Start Learning
               </Button>
+
+              {/* Popular topics moved inside the card */}
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground mb-4 text-center">
+                  Popular topics to get you started:
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {[
+                    'Machine Learning',
+                    'Web Development',
+                    'Data Science',
+                    'Digital Marketing',
+                    'Photography',
+                    'Python Programming',
+                    'UI/UX Design',
+                    'Blockchain'
+                  ].map((topic) => (
+                    <Button
+                      key={topic}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTopicName(topic)}
+                      className="text-xs"
+                    >
+                      {topic}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </form>
           </Card>
 
-          <div className="mt-12 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              Popular topics to get you started:
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {[
-                'Machine Learning',
-                'Web Development',
-                'Data Science',
-                'Digital Marketing',
-                'Photography',
-                'Python Programming',
-                'UI/UX Design',
-                'Blockchain'
-              ].map((topic) => (
-                <Button
-                  key={topic}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setTopicName(topic)}
-                  className="text-xs"
-                >
-                  {topic}
-                </Button>
-              ))}
+          {/* Previously Generated Roadmaps */}
+          {userRoadmapsQuery.data?.data && userRoadmapsQuery.data.data.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold mb-6">Your Learning Roadmaps</h2>
+              <div className="max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+                  {userRoadmapsQuery.data.data.map((roadmap) => (
+                    <Card key={roadmap.id} className="p-6 hover:shadow-md transition-shadow min-h-[200px]">
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-semibold text-lg mb-2">{roadmap.title}</h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{roadmap.description}</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(roadmap.createdAt).toLocaleDateString()}
+                          <span>•</span>
+                          <Layers className="h-3 w-3" />
+                          {roadmap.topicCount} topics
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {roadmap.difficulty}
+                          </Badge>
+                          <Link href={`/map?roadmapId=${roadmap.id}`}>
+                            <Button size="sm" variant="outline" className="flex items-center gap-1">
+                              <ExternalLink className="h-3 w-3" />
+                              View
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Loading state for roadmaps */}
+          {userRoadmapsQuery.isLoading && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold mb-6">Your Learning Roadmaps</h2>
+              <div className="max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i} className="p-6 min-h-[200px]">
+                      <Skeleton className="h-5 w-3/4 mb-3" />
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3 mb-6" />
+                      <div className="flex justify-between items-center mt-auto">
+                        <Skeleton className="h-6 w-20" />
+                        <Skeleton className="h-8 w-24" />
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
