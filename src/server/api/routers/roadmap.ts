@@ -372,4 +372,120 @@ export const roadmapRouter = createTRPCRouter({
         throw new Error(`Failed to delete roadmap: ${error instanceof Error ? error.message : String(error)}`);
       }
     }),
+
+  saveYoutubeResources: publicProcedure
+    .input(z.object({
+      topicId: z.string(),
+      resources: z.array(z.object({
+        videoId: z.string(),
+        title: z.string(),
+        description: z.string(),
+        channelTitle: z.string(),
+        publishedAt: z.string(),
+        thumbnailUrl: z.string(),
+        relevanceScore: z.number().min(1).max(10),
+        relevanceReason: z.string(),
+        url: z.string()
+      }))
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        console.log(`💾 Saving YouTube resources for topic: ${input.topicId}`);
+        console.log(`📺 Number of resources to save: ${input.resources.length}`);
+        
+        // First, verify the topic exists
+        const topic = await db.topic.findUnique({
+          where: { id: input.topicId }
+        });
+        
+        if (!topic) {
+          throw new Error("Topic not found");
+        }
+        
+        // Delete existing YouTube resources for this topic to avoid duplicates
+        await db.resource.deleteMany({
+          where: {
+            topicId: input.topicId,
+            type: 'YOUTUBE_VIDEO'
+          }
+        });
+        
+        // Create new resources
+        const savedResources = await db.resource.createMany({
+          data: input.resources.map(resource => ({
+            title: resource.title,
+            description: resource.description,
+            url: resource.url,
+            type: 'YOUTUBE_VIDEO' as const,
+            relevanceScore: resource.relevanceScore,
+            relevanceReason: resource.relevanceReason,
+            thumbnailUrl: resource.thumbnailUrl,
+            channelTitle: resource.channelTitle,
+            publishedAt: new Date(resource.publishedAt),
+            topicId: input.topicId
+          }))
+        });
+        
+        console.log(`✅ YouTube resources saved successfully`);
+        console.log(`📺 Saved ${savedResources.count} resources`);
+        
+        return {
+          success: true,
+          data: {
+            savedCount: savedResources.count,
+            topicId: input.topicId
+          }
+        };
+        
+      } catch (error) {
+        console.error("❌ Error saving YouTube resources:", error);
+        
+        if (error instanceof Error) {
+          if (error.message.includes("Topic not found")) {
+            throw new Error("The specified topic does not exist");
+          }
+          if (error.message.includes("Foreign key constraint")) {
+            throw new Error("Invalid topic ID provided");
+          }
+        }
+        
+        throw new Error(`Failed to save YouTube resources: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  getTopicResources: publicProcedure
+    .input(z.object({
+      topicId: z.string(),
+      type: z.enum(['YOUTUBE_VIDEO', 'ARTICLE', 'DOCUMENTATION', 'TUTORIAL', 'COURSE', 'BOOK', 'PODCAST', 'EXERCISE', 'QUIZ', 'OTHER']).optional()
+    }))
+    .query(async ({ input }) => {
+      try {
+        console.log(`📚 Retrieving resources for topic: ${input.topicId}`);
+        if (input.type) {
+          console.log(`🔍 Filtering by type: ${input.type}`);
+        }
+        
+        const resources = await db.resource.findMany({
+          where: {
+            topicId: input.topicId,
+            ...(input.type && { type: input.type })
+          },
+          orderBy: [
+            { relevanceScore: 'desc' },
+            { createdAt: 'desc' }
+          ]
+        });
+        
+        console.log(`✅ Found ${resources.length} resources`);
+        
+        return {
+          success: true,
+          data: resources
+        };
+        
+      } catch (error) {
+        console.error("❌ Error retrieving topic resources:", error);
+        throw new Error(`Failed to retrieve topic resources: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
 });

@@ -37,6 +37,22 @@ interface YouTubeResources {
   totalSearchResults: number;
 }
 
+// Type for database resource
+interface DatabaseResource {
+  id: string;
+  title: string;
+  description: string | null;
+  url: string;
+  type: string;
+  relevanceScore: number | null;
+  relevanceReason: string | null;
+  thumbnailUrl: string | null;
+  channelTitle: string | null;
+  publishedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export default function MapClient() {
   const searchParams = useSearchParams();
   const [topic, setTopic] = useState("");
@@ -93,11 +109,41 @@ export default function MapClient() {
     onSuccess: (data) => {
       console.log("🎥 YouTube resources fetched successfully:", data.data);
       setYoutubeResources(data.data);
+      
+      // Save the resources to database after successful fetch
+      if (selectedTopic) {
+        saveYoutubeResourcesMutation.mutate({
+          topicId: selectedTopic.id,
+          resources: data.data.selectedVideos
+        });
+      }
     },
     onError: (error) => {
       console.error("❌ Error fetching YouTube resources:", error);
     }
   });
+
+  // tRPC mutation for saving YouTube resources to database
+  const saveYoutubeResourcesMutation = api.roadmap.saveYoutubeResources.useMutation({
+    onSuccess: (data) => {
+      console.log("💾 YouTube resources saved to database:", data.data);
+    },
+    onError: (error) => {
+      console.error("❌ Error saving YouTube resources:", error);
+    }
+  });
+
+  // tRPC query for getting topic resources from database
+  const getTopicResourcesQuery = api.roadmap.getTopicResources.useQuery(
+    { 
+      topicId: selectedTopic?.id ?? "",
+      type: "YOUTUBE_VIDEO"
+    },
+    { 
+      enabled: !!selectedTopic?.id,
+      refetchOnWindowFocus: false
+    }
+  );
 
   // tRPC query for loading roadmap by ID
   const roadmapId = searchParams.get('roadmapId');
@@ -162,6 +208,58 @@ export default function MapClient() {
       });
     }
   }, [searchParams, generateRoadmapMutation]);
+
+  // Effect to load existing resources when topic is selected
+  useEffect(() => {
+    if (selectedTopic?.id) {
+      // Clear resources immediately when topic changes
+      setYoutubeResources(null);
+      console.log("🔄 Topic changed, clearing resources and checking database for:", selectedTopic.title);
+    }
+  }, [selectedTopic?.id]);
+
+  // Effect to handle database resource loading
+  useEffect(() => {
+    if (getTopicResourcesQuery.data?.success) {
+      const resources = getTopicResourcesQuery.data.data as DatabaseResource[];
+      if (Array.isArray(resources) && resources.length > 0) {
+        // Convert database resources to YouTubeResources format
+        const convertedResources: YouTubeResources = {
+          selectedVideos: resources.map((resource: DatabaseResource) => {
+            // Extract video ID from YouTube URL
+            let videoId = resource.id;
+            if (resource.url.includes('youtube.com/watch?v=')) {
+              const urlParams = new URLSearchParams(resource.url.split('?')[1]);
+              videoId = urlParams.get('v') ?? resource.id;
+            } else if (resource.url.includes('youtu.be/')) {
+              videoId = resource.url.split('youtu.be/')[1]?.split('?')[0] ?? resource.id;
+            }
+            
+            return {
+              videoId,
+              title: resource.title,
+              description: resource.description ?? '',
+              channelTitle: resource.channelTitle ?? '',
+              publishedAt: resource.publishedAt?.toISOString() ?? new Date().toISOString(),
+              thumbnailUrl: resource.thumbnailUrl ?? '',
+              relevanceScore: resource.relevanceScore ?? 5,
+              relevanceReason: resource.relevanceReason ?? '',
+              url: resource.url
+            };
+          }),
+          summary: `Found ${resources.length} saved resources for this topic`,
+          totalSearchResults: resources.length
+        };
+        setYoutubeResources(convertedResources);
+        console.log("📚 Loaded existing resources from database:", convertedResources);
+      } else {
+        // No existing resources found in database
+        console.log("📭 No existing resources found in database for topic:", selectedTopic?.title);
+      }
+    } else if (getTopicResourcesQuery.data?.success === false) {
+      console.log("❌ Failed to load resources from database:", getTopicResourcesQuery.data);
+    }
+  }, [getTopicResourcesQuery.data, selectedTopic?.title]);
 
   const handleGenerateRoadmap = () => {
     if (!topic.trim()) return;
@@ -371,8 +469,9 @@ export default function MapClient() {
             <CustomMindmap 
               roadmap={roadmap} 
               onTopicSelect={(topic) => {
+                console.log("🎯 Topic selected:", topic.title, "ID:", topic.id);
                 setSelectedTopic(topic);
-                setYoutubeResources(null); // Clear resources when selecting a new topic
+                // Resources will be loaded automatically via the useEffect hook
               }}
               selectedTopic={selectedTopic}
             />
@@ -422,20 +521,49 @@ export default function MapClient() {
                   )}
                   
                   <div className="pt-2">
-                    <Button 
-                      size="sm" 
-                      className="w-full"
-                      onClick={handleFetchResources}
-                      disabled={fetchYoutubeResourcesMutation.isPending}
-                    >
-                      {fetchYoutubeResourcesMutation.isPending ? "Fetching Resources..." : "Fetch Resources"}
-                    </Button>
+                    {/* Show loading state when checking for existing resources */}
+                    {getTopicResourcesQuery.isLoading && (
+                      <div className="flex items-center justify-center text-sm text-muted-foreground p-4">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                        Checking for existing resources...
+                      </div>
+                    )}
+                    
+                    {/* Show fetch button only if no resources exist and not loading from database */}
+                    {!youtubeResources && !getTopicResourcesQuery.isLoading && (
+                      <Button 
+                        size="sm" 
+                        className="w-full"
+                        onClick={handleFetchResources}
+                        disabled={fetchYoutubeResourcesMutation.isPending}
+                      >
+                        {fetchYoutubeResourcesMutation.isPending ? "Fetching Resources..." : "Fetch New Resources"}
+                      </Button>
+                    )}
+                    
+                    {/* Show refresh button if resources already exist */}
+                    {youtubeResources && !getTopicResourcesQuery.isLoading && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleFetchResources}
+                        disabled={fetchYoutubeResourcesMutation.isPending}
+                      >
+                        {fetchYoutubeResourcesMutation.isPending ? "Refreshing Resources..." : "Refresh Resources"}
+                      </Button>
+                    )}
                   </div>
 
                   {/* YouTube Resources Section */}
                   {youtubeResources && (
                     <div className="border-t pt-4 space-y-3">
-                      <Label className="text-sm font-medium">YouTube Resources:</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">YouTube Resources:</Label>
+                        <Badge variant="secondary" className="text-xs">
+                          {youtubeResources.summary.includes('saved') ? 'Saved' : 'Fresh'}
+                        </Badge>
+                      </div>
                       <ScrollArea className="h-64">
                         <div className="space-y-2">
                           {youtubeResources.selectedVideos.map((video) => (

@@ -64,8 +64,48 @@ model Topic {
     parent    Topic?  @relation("TopicHierarchy", fields: [parentId], references: [id])
     children  Topic[] @relation("TopicHierarchy")
     
+    // Relations to resources
+    resources Resource[]
+    
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     
     @@map("topics")
+}
+
+model Resource {
+    id               String   @id @default(cuid())
+    title            String
+    description      String?
+    url              String
+    type             ResourceType
+    difficulty       String?  // "beginner", "intermediate", "advanced"
+    relevanceScore   Float?   // 1-10 rating of relevance
+    relevanceReason  String?  // AI-generated reason for relevance
+    thumbnailUrl     String?
+    channelTitle     String?  // For YouTube videos
+    publishedAt      DateTime?
+    duration         String?  // For videos (e.g., "PT10M30S" for 10:30)
+    
+    // Foreign key to topic
+    topicId String
+    topic   Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+    
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    
+    @@map("resources")
+}
+
+enum ResourceType {
+    YOUTUBE_VIDEO
+    ARTICLE
+    DOCUMENTATION
+    TUTORIAL
+    COURSE
+    BOOK
+    PODCAST
+    EXERCISE
+    QUIZ
+    OTHER
 }
