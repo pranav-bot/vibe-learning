@@ -13,6 +13,7 @@ import uuid
 
 # Import our PDF parser
 from pdf_parser import process_pdf_file
+from youtube_transcript import extract_youtube_transcript
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -224,6 +225,105 @@ async def upload_pdf(file: UploadFile = File(...)) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error uploading PDF: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error uploading PDF: {str(e)}")
+
+@app.post("/youtube-transcript")
+async def get_youtube_transcript(
+    url: str = Form(...),
+    title: str = Form(None)
+) -> Dict[str, Any]:
+    """
+    Extract transcript from a YouTube video URL
+    """
+    try:
+        # Validate URL format
+        if not url or not isinstance(url, str):
+            raise HTTPException(status_code=400, detail="URL is required")
+        
+        # Check if it's a valid YouTube URL pattern
+        if "youtube.com" not in url and "youtu.be" not in url:
+            raise HTTPException(status_code=400, detail="Invalid YouTube URL")
+        
+        logger.info(f"Extracting transcript for YouTube URL: {url}")
+        
+        # Extract transcript using the existing function
+        transcript_text = extract_youtube_transcript(url)
+        
+        if not transcript_text:
+            raise HTTPException(
+                status_code=404, 
+                detail="No transcript available for this video. The video may not have captions or transcripts enabled."
+            )
+        
+        # Clean up the transcript (remove extra whitespace)
+        transcript_text = " ".join(transcript_text.split())
+        
+        # Generate unique content ID
+        content_id = str(uuid.uuid4())
+        
+        # Create content data structure similar to PDF processing
+        content_data = {
+            "content_id": content_id,
+            "content_type": "youtube",
+            "title": title or f"YouTube Video Transcript",
+            "url": url,
+            "text_length": len(transcript_text),
+            "text_preview": (transcript_text[:200] + "..." 
+                           if len(transcript_text) > 200 
+                           else transcript_text),
+            "status": "processed",
+            "transcript": transcript_text,
+            "processed_at": __import__('datetime').datetime.now().isoformat()
+        }
+        
+        # Save transcript data to JSON file
+        json_file_path = DATA_DIR / f"{content_id}.json"
+        with open(json_file_path, 'w', encoding='utf-8') as f:
+            json.dump(content_data, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"Successfully extracted YouTube transcript: {url} (ID: {content_id}) - "
+                   f"{len(transcript_text)} characters")
+        
+        return {
+            "success": True,
+            "message": "YouTube transcript extracted successfully",
+            "data": {
+                "content_id": content_id,
+                "content_type": "youtube",
+                "title": content_data["title"],
+                "url": url,
+                "text_length": len(transcript_text),
+                "text_preview": content_data["text_preview"],
+                "status": "processed",
+                "data_file": f"data/{content_id}.json"
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting YouTube transcript: {str(e)}")
+        
+        # Check for specific transcript API errors
+        if "No transcripts were found" in str(e):
+            raise HTTPException(
+                status_code=404, 
+                detail="No transcript available for this video. The video may not have captions enabled."
+            )
+        elif "Video unavailable" in str(e) or "does not exist" in str(e):
+            raise HTTPException(
+                status_code=404, 
+                detail="Video not found or unavailable. Please check the URL."
+            )
+        elif "TranscriptsDisabled" in str(e):
+            raise HTTPException(
+                status_code=404, 
+                detail="Transcripts are disabled for this video."
+            )
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Error extracting transcript: {str(e)}"
+            )
 
 @app.get("/content/{content_id}")
 async def get_content_info(content_id: str):
@@ -449,6 +549,48 @@ async def topic_extractor_content(content_id: str):
     except Exception as e:
         logger.error(f"Error formatting content for topic extractor {content_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error formatting content: {str(e)}")
+
+@app.get("/content/{content_id}/transcript")
+async def get_transcript_text(content_id: str):
+    """
+    Get the full transcript text for YouTube content
+    """
+    try:
+        # Load the processed data
+        json_file_path = DATA_DIR / f"{content_id}.json"
+        if not json_file_path.exists():
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            content_data = json.load(f)
+        
+        # Check if it's YouTube content
+        if content_data.get("content_type") != "youtube":
+            raise HTTPException(status_code=400, detail="Content is not a YouTube video")
+        
+        transcript = content_data.get("transcript")
+        if not transcript:
+            raise HTTPException(status_code=404, detail="No transcript available for this content")
+        
+        return {
+            "success": True,
+            "data": {
+                "content_id": content_id,
+                "url": content_data.get("url"),
+                "title": content_data.get("title"),
+                "transcript": transcript,
+                "text_length": len(transcript),
+                "processed_at": content_data.get("processed_at")
+            }
+        }
+        
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Content not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid data file format")
+    except Exception as e:
+        logger.error(f"Error retrieving transcript for content {content_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving transcript: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
