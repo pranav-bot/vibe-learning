@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { generateRoadmap } from "~/course-builder-ai/roadmap";
 import { youtubeResources } from "~/course-builder-ai/resources";
+import { generateProjectsForRoadmap, type Project } from "~/course-builder-ai/projects";
 import llms from "~/lib/llms";
 import { db } from "~/server/db";
 
@@ -486,6 +487,267 @@ export const roadmapRouter = createTRPCRouter({
       } catch (error) {
         console.error("❌ Error retrieving topic resources:", error);
         throw new Error(`Failed to retrieve topic resources: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  generateProjects: publicProcedure
+    .input(z.object({
+      roadmapId: z.string(),
+      projectCount: z.number().min(1).max(20).default(6)
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        console.log(`🚀 Generating projects for roadmap: ${input.roadmapId}`);
+        console.log(`📊 Project count requested: ${input.projectCount}`);
+        
+        // First, get the roadmap with its topics
+        const roadmap = await db.roadmap.findUnique({
+          where: { id: input.roadmapId },
+          include: {
+            topics: {
+              orderBy: { level: 'asc' }
+            }
+          }
+        });
+        
+        if (!roadmap) {
+          throw new Error("Roadmap not found");
+        }
+        
+        // Convert the database roadmap to the format expected by generateProjectsForRoadmap
+        const roadmapForGeneration = {
+          title: roadmap.title,
+          description: roadmap.description,
+          difficulty: roadmap.difficulty as "beginner" | "intermediate" | "advanced",
+          rootTopics: roadmap.topics
+            .filter(topic => topic.parentId === null)
+            .map(topic => topic.id),
+          topics: roadmap.topics.map(topic => ({
+            id: topic.id,
+            title: topic.title,
+            summary: topic.summary,
+            level: topic.level,
+            parentId: topic.parentId ?? undefined,
+            children: roadmap.topics
+              .filter(t => t.parentId === topic.id)
+              .map(t => t.id)
+          }))
+        };
+        
+        // Generate projects using AI
+        const model = llms.gemini("gemini-1.5-flash");
+        const projectList = await generateProjectsForRoadmap(
+          roadmapForGeneration,
+          model,
+          input.projectCount
+        );
+        
+        console.log(`✅ Generated ${projectList.projects.length} projects successfully`);
+        
+        return {
+          success: true,
+          data: projectList.projects
+        };
+        
+      } catch (error) {
+        console.error("❌ Error generating projects:", error);
+        
+        if (error instanceof Error) {
+          if (error.message.includes("Roadmap not found")) {
+            throw new Error("The specified roadmap does not exist");
+          }
+        }
+        
+        throw new Error(`Failed to generate projects: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  saveProjects: publicProcedure
+    .input(z.object({
+      roadmapId: z.string(),
+      projects: z.array(z.object({
+        id: z.string(),
+        title: z.string(),
+        description: z.string(),
+        difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]),
+        estimatedTime: z.string(),
+        technologies: z.array(z.string()),
+        relatedTopicIds: z.array(z.string()),
+        deliverables: z.array(z.string())
+      }))
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        console.log(`💾 Saving projects for roadmap: ${input.roadmapId}`);
+        console.log(`📝 Number of projects to save: ${input.projects.length}`);
+        
+        // First, verify the roadmap exists
+        const roadmap = await db.roadmap.findUnique({
+          where: { id: input.roadmapId },
+          include: { topics: true }
+        });
+        
+        if (!roadmap) {
+          throw new Error("Roadmap not found");
+        }
+        
+        // Verify all related topic IDs exist in the roadmap
+        const roadmapTopicIds = new Set(roadmap.topics.map(t => t.id));
+        for (const project of input.projects) {
+          for (const topicId of project.relatedTopicIds) {
+            if (!roadmapTopicIds.has(topicId)) {
+              throw new Error(`Topic ID ${topicId} not found in roadmap ${input.roadmapId}`);
+            }
+          }
+        }
+        
+        // Delete existing projects for this roadmap to avoid duplicates
+        await db.project.deleteMany({
+          where: { roadmapId: input.roadmapId }
+        });
+        
+        // Create new projects and their topic relationships
+        const savedProjects = [];
+        for (const project of input.projects) {
+          const savedProject = await db.project.create({
+            data: {
+              id: project.id,
+              title: project.title,
+              description: project.description,
+              difficulty: project.difficulty,
+              estimatedTime: project.estimatedTime,
+              technologies: project.technologies,
+              deliverables: project.deliverables,
+              roadmapId: input.roadmapId,
+              relatedTopics: {
+                create: project.relatedTopicIds.map(topicId => ({
+                  topicId: topicId
+                }))
+              }
+            },
+            include: {
+              relatedTopics: {
+                include: {
+                  topic: true
+                }
+              }
+            }
+          });
+          savedProjects.push(savedProject);
+        }
+        
+        console.log(`✅ Projects saved successfully`);
+        console.log(`📝 Saved ${savedProjects.length} projects`);
+        
+        return {
+          success: true,
+          data: {
+            savedCount: savedProjects.length,
+            roadmapId: input.roadmapId,
+            projects: savedProjects.map(p => ({
+              id: p.id,
+              title: p.title,
+              description: p.description,
+              difficulty: p.difficulty,
+              estimatedTime: p.estimatedTime,
+              technologies: p.technologies,
+              deliverables: p.deliverables,
+              relatedTopics: p.relatedTopics.map(rt => ({
+                id: rt.topic.id,
+                title: rt.topic.title
+              }))
+            }))
+          }
+        };
+        
+      } catch (error) {
+        console.error("❌ Error saving projects:", error);
+        
+        if (error instanceof Error) {
+          if (error.message.includes("Roadmap not found")) {
+            throw new Error("The specified roadmap does not exist");
+          }
+          if (error.message.includes("Topic ID") && error.message.includes("not found")) {
+            throw error; // Re-throw topic validation errors as-is
+          }
+          if (error.message.includes("Foreign key constraint")) {
+            throw new Error("Invalid roadmap or topic ID provided");
+          }
+        }
+        
+        throw new Error(`Failed to save projects: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  getProjects: publicProcedure
+    .input(z.object({
+      roadmapId: z.string()
+    }))
+    .query(async ({ input }) => {
+      try {
+        console.log(`📋 Retrieving projects for roadmap: ${input.roadmapId}`);
+        
+        const projects = await db.project.findMany({
+          where: { roadmapId: input.roadmapId },
+          include: {
+            relatedTopics: {
+              include: {
+                topic: {
+                  select: {
+                    id: true,
+                    title: true,
+                    summary: true,
+                    level: true
+                  }
+                }
+              }
+            },
+            roadmap: {
+              select: {
+                id: true,
+                title: true,
+                difficulty: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        });
+        
+        console.log(`✅ Found ${projects.length} projects`);
+        
+        const formattedProjects = projects.map(project => ({
+          id: project.id,
+          title: project.title,
+          description: project.description,
+          difficulty: project.difficulty,
+          estimatedTime: project.estimatedTime,
+          technologies: project.technologies,
+          deliverables: project.deliverables,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+          relatedTopics: project.relatedTopics.map(rt => ({
+            id: rt.topic.id,
+            title: rt.topic.title,
+            summary: rt.topic.summary,
+            level: rt.topic.level
+          })),
+          roadmap: project.roadmap
+        }));
+        
+        return {
+          success: true,
+          data: {
+            roadmapId: input.roadmapId,
+            projects: formattedProjects,
+            totalCount: formattedProjects.length
+          }
+        };
+        
+      } catch (error) {
+        console.error("❌ Error retrieving projects:", error);
+        throw new Error(`Failed to retrieve projects: ${error instanceof Error ? error.message : String(error)}`);
       }
     }),
 });

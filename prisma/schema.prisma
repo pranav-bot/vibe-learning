@@ -45,6 +45,7 @@ model Roadmap {
     
     // Relations
     topics      Topic[]
+    projects    Project[]
     
     @@map("roadmaps")
 }
@@ -64,13 +65,48 @@ model Topic {
     parent    Topic?  @relation("TopicHierarchy", fields: [parentId], references: [id])
     children  Topic[] @relation("TopicHierarchy")
     
-    // Relations to resources
-    resources Resource[]
+    // Relations to resources and projects
+    resources       Resource[]
+    relatedProjects ProjectTopic[]
     
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     
     @@map("topics")
+}
+
+model Project {
+    id               String   @id @default(cuid())
+    title            String
+    description      String
+    difficulty       ProjectDifficulty
+    estimatedTime    String   // e.g., "2-3 hours", "1 week", "2-4 days"
+    technologies     String[] // Array of technologies/tools/skills
+    deliverables     String[] // What the learner will build/create
+    
+    // Foreign key to roadmap
+    roadmapId        String
+    roadmap          Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+    
+    // Many-to-many relation with topics (a project can cover multiple topics)
+    relatedTopics    ProjectTopic[]
+    
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+    
+    @@map("projects")
+}
+
+model ProjectTopic {
+    id        String  @id @default(cuid())
+    projectId String
+    topicId   String
+    
+    project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    topic     Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+    
+    @@unique([projectId, topicId])
+    @@map("project_topics")
 }
 
 model Resource {
@@ -108,4 +144,10 @@ enum ResourceType {
     EXERCISE
     QUIZ
     OTHER
+}
+
+enum ProjectDifficulty {
+    BEGINNER
+    INTERMEDIATE
+    ADVANCED
 }
