@@ -229,7 +229,6 @@ async def upload_pdf(file: UploadFile = File(...)) -> Dict[str, Any]:
 @app.post("/youtube-transcript")
 async def get_youtube_transcript(
     url: str = Form(...),
-    title: str = Form(None)
 ) -> Dict[str, Any]:
     """
     Extract transcript from a YouTube video URL
@@ -264,7 +263,7 @@ async def get_youtube_transcript(
         content_data = {
             "content_id": content_id,
             "content_type": "youtube",
-            "title": title or f"YouTube Video Transcript",
+            "title": f"YouTube Video Transcript",
             "url": url,
             "text_length": len(transcript_text),
             "text_preview": (transcript_text[:200] + "..." 

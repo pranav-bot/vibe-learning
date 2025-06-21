@@ -23,8 +23,9 @@ export function DashboardClient() {
   const [success, setSuccess] = useState<string | null>(null);
   const [isProcessingTopics, setIsProcessingTopics] = useState(false);
 
-  // TRPC mutation for topic extraction
+  // TRPC mutations for topic extraction
   const extractTopics = api.content.extractTopics.useMutation();
+  const extractYoutubeTopics = api.content.extractYoutubeTopics.useMutation();
 
   const handleUploadSuccess = async (data: UploadedContent | undefined) => {
     if (data) {
@@ -37,8 +38,21 @@ export function DashboardClient() {
       localStorage.setItem(`content_${data.content_id}`, JSON.stringify(data));
       
       try {
-        // Extract topics using the topic extractor
-        const topicsResult = await extractTopics.mutateAsync({ contentId: data.content_id });
+        // Extract topics using the appropriate topic extractor based on content type
+        let topicsResult;
+        if (data.content_type === 'youtube') {
+          console.log("🎯 Extracting topics from YouTube video...");
+          if (!data.url) {
+            throw new Error("YouTube content missing URL");
+          }
+          topicsResult = await extractYoutubeTopics.mutateAsync({ 
+            url: data.url, 
+            title: data.title 
+          });
+        } else {
+          console.log("🎯 Extracting topics from document...");
+          topicsResult = await extractTopics.mutateAsync({ contentId: data.content_id });
+        }
         
         console.log("🎯 Topics extracted successfully:", topicsResult.data);
         

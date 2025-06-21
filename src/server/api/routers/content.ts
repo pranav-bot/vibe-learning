@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import topicExtractor from "~/commands-ai/topic-extractor";
+import topicExtractor, { youtubeTopicExtractor } from "~/commands-ai/topic-extractor";
 import explain from "~/commands-ai/explain";
 import llms from "~/lib/llms";
 
@@ -79,6 +79,136 @@ export const contentRouter = createTRPCRouter({
         }
         
         throw new Error(`Failed to extract topics: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  extractYoutubeTopics: publicProcedure
+    .input(z.object({ 
+      url: z.string().url("Must be a valid URL"),
+      title: z.string().optional()
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        console.log(`🎥 Starting YouTube topic extraction for URL: ${input.url}`);
+        
+        // Validate that it's a YouTube URL
+        if (!input.url.includes('youtube.com') && !input.url.includes('youtu.be')) {
+          throw new Error("URL must be a YouTube video link");
+        }
+        
+        // Extract transcript from YouTube video using Python backend
+        const formData = new FormData();
+        formData.append('url', input.url);
+        if (input.title) {
+          formData.append('title', input.title);
+        }
+        
+        console.log(`📡 Fetching transcript from Python backend...`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for transcript extraction
+        
+        const response = await fetch('http://localhost:8000/youtube-transcript', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to extract transcript: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+        
+        const responseData = await response.json() as { 
+          success: boolean; 
+          data: { 
+            content_id: string; 
+            transcript?: string; 
+            title: string; 
+            url: string; 
+            text_length: number; 
+          } 
+        };
+        
+        if (!responseData.success) {
+          throw new Error("Failed to extract transcript from YouTube video");
+        }
+        
+        // Get the transcript text
+        const transcriptResponse = await fetch(`http://localhost:8000/content/${responseData.data.content_id}/transcript`);
+        
+        if (!transcriptResponse.ok) {
+          throw new Error("Failed to retrieve transcript text");
+        }
+        
+        const transcriptData = await transcriptResponse.json() as {
+          success: boolean;
+          data: {
+            transcript: string;
+            title: string;
+            url: string;
+            text_length: number;
+          }
+        };
+        
+        if (!transcriptData.success || !transcriptData.data.transcript) {
+          throw new Error("No transcript available for this video");
+        }
+        
+        console.log(`📝 Transcript extracted: ${transcriptData.data.text_length} characters`);
+        
+        // Extract topics using the YouTube topic extractor with timeout
+        const extractionPromise = youtubeTopicExtractor(
+          transcriptData.data.transcript, 
+          llms.gemini("gemini-2.0-flash-exp")
+        );
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("YouTube topic extraction timed out after 5 minutes")), 300000)
+        );
+        
+        const result = await Promise.race([extractionPromise, timeoutPromise]) as Awaited<typeof extractionPromise>;
+        
+        // Log the output
+        console.log("🎯 YouTube Topic Extractor Output:");
+        console.log("=".repeat(50));
+        console.log(JSON.stringify(result.object, null, 2));
+        console.log("=".repeat(50));
+        console.log(`✅ Successfully extracted ${result.object.topics?.length || 0} topics from YouTube video`);
+        
+        return {
+          success: true,
+          data: {
+            ...result.object,
+            contentId: responseData.data.content_id,
+            videoInfo: {
+              title: transcriptData.data.title,
+              url: transcriptData.data.url,
+              text_length: transcriptData.data.text_length
+            }
+          }
+        };
+        
+      } catch (error) {
+        console.error("❌ Error extracting YouTube topics:", error);
+        
+        // Provide more detailed error information
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            throw new Error("Request timed out while extracting transcript from YouTube");
+          } else if (error.message.includes("YouTube topic extraction timed out")) {
+            throw new Error("Topic extraction took too long and was cancelled (>5 minutes)");
+          } else if (error.message.includes("No transcript available")) {
+            throw new Error("This YouTube video does not have captions or transcripts available");
+          } else if (error.message.includes("TranscriptsDisabled")) {
+            throw new Error("Transcripts are disabled for this YouTube video");
+          } else if (error.message.includes("Video unavailable")) {
+            throw new Error("YouTube video is unavailable or private");
+          }
+        }
+        
+        throw new Error(`Failed to extract topics from YouTube video: ${error instanceof Error ? error.message : String(error)}`);
       }
     }),
 

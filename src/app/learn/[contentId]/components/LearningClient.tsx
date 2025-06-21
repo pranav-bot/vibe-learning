@@ -263,31 +263,64 @@ export function LearningClient({ contentId }: LearningClientProps) {
         }
       }
       
-      // If no stored topics, call the API
-      console.log('📡 No stored topics found, calling extractTopics API...');
-      const response = await fetch('/api/trpc/content.extractTopics', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          json: {
-            contentId: contentId
-          }
-        })
-      });
+      // If no stored topics, call the appropriate API based on content type
+      console.log('📡 No stored topics found, calling topic extraction API...');
+      
+      let response;
+      if (contentData.content_type === 'youtube') {
+        console.log('🎥 Extracting topics from YouTube content');
+        if (!contentData.url) {
+          throw new Error("YouTube content missing URL");
+        }
+        response = await fetch('/api/trpc/content.extractYoutubeTopics', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            json: {
+              url: contentData.url,
+              title: contentData.title
+            }
+          })
+        });
+      } else {
+        console.log('📄 Extracting topics from document content');
+        response = await fetch('/api/trpc/content.extractTopics', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            json: {
+              contentId: contentId
+            }
+          })
+        });
+      }
 
       if (response.ok) {
-        const result = await response.json() as { result: { data: { success: boolean; data: { topics: Array<{ topic_name: string; topic_page_start: number; topic_page_end: number; topic_summary: string; }> } } } };
+        const result = await response.json() as { result: { data: { success: boolean; data: { topics: Array<{ topic_name: string; topic_page_start?: number; topic_page_end?: number; topic_summary: string; }> } } } };
         
         if (result.result.data.success) {
           const topicsData = result.result.data.data;
-          setAvailableTopics(topicsData);
+          
+          // Transform topics data to ensure all required fields are present
+          const transformedTopicsData: { topics: Array<{ topic_name: string; topic_page_start: number; topic_page_end: number; topic_summary: string; }> } = {
+            topics: topicsData.topics.map((topic, index) => ({
+              topic_name: topic.topic_name,
+              topic_page_start: contentData.content_type === 'youtube' ? index + 1 : (topic.topic_page_start ?? 1),
+              topic_page_end: contentData.content_type === 'youtube' ? index + 1 : (topic.topic_page_end ?? 1),
+              topic_summary: topic.topic_summary
+            }))
+          };
+          
+          setAvailableTopics(transformedTopicsData);
           
           // Store the topics in localStorage for future use
-          localStorage.setItem(`topics_${contentId}`, JSON.stringify(topicsData));
+          localStorage.setItem(`topics_${contentId}`, JSON.stringify(transformedTopicsData));
           
-          console.log('✅ Topics fetched from API and cached:', topicsData.topics.length, 'topics');
+          console.log('✅ Topics fetched from API and cached:', transformedTopicsData.topics.length, 'topics');
         } else {
           console.warn('❌ Failed to extract topics');
           setAvailableTopics({ topics: [] });

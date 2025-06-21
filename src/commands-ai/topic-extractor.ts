@@ -59,4 +59,44 @@ Extract the main topics and provide concise summaries for each topic. Focus on t
   return response;
 }
 
+// Function to extract topics from YouTube video transcript
+const youtubeTopicExtractor = async (transcript: string, model: LanguageModelV1) => {
+  console.log(`🎥 YouTube Topic Extractor: Processing transcript...`);
+  console.log(`📝 Transcript length: ${transcript.length} characters`);
+  
+  // Chunk content if it's too large (limit to ~500k characters to avoid token limits for video transcripts)
+  const maxContentLength = 500000; // 500k characters for video transcripts
+  let contentToProcess = transcript;
+  
+  if (transcript.length > maxContentLength) {
+    console.log(`⚠️ Transcript too large (${transcript.length} chars), truncating to ${maxContentLength} chars...`);
+    contentToProcess = transcript.substring(0, maxContentLength) + "\n\n[Transcript truncated for processing...]";
+  }
+  
+  console.log(`🧠 Sending transcript to AI model for topic extraction...`);
+
+  const response = await generateObject({
+    model: model,
+    prompt: `Analyze the following YouTube video transcript and extract the main topics discussed in the video. For each topic, identify:
+1. The topic name/title (without spaces)
+2. A detailed summary of what is discussed about this topic
+
+Video transcript:
+${contentToProcess}
+
+Extract the main topics chronologically as they appear in the video. Focus on distinct topics, concepts, or segments that are discussed.`,
+    schema: z.object({
+      topics: z.array(z.object({
+        topic_name: z.string().describe("The name or title of the topic discussed"),
+        topic_summary: z.string().describe("A detailed summary of what is discussed about this topic")
+      })).describe("List of main topics discussed in the video with summaries"),
+      video_summary: z.string().describe("Overall summary of the entire video content")
+    }),
+  });
+
+  console.log(`🎉 YouTube topic extraction completed successfully!`);
+  return response;
+};
+
 export default topicExtractor;
+export { youtubeTopicExtractor };
