@@ -250,9 +250,17 @@ export function LearningClient({ contentId }: LearningClientProps) {
       setTopicsLoading(true);
       console.log('🔍 Checking for topics for content:', contentId);
       
+      // Debug: List all localStorage keys that contain "topics"
+      const allKeys = Object.keys(localStorage);
+      const topicKeys = allKeys.filter(key => key.includes('topics'));
+      console.log('🗄️ All topic-related localStorage keys:', topicKeys);
+      
       // First, check localStorage for previously extracted topics
       const storedTopics = localStorage.getItem(`topics_${contentId}`);
+      console.log('🔍 Checking localStorage with key:', `topics_${contentId}`);
+      console.log('🔍 StoredTopics result:', storedTopics ? 'Found data' : 'No data found');
       if (storedTopics) {
+        console.log('📝 StoredTopics content:', storedTopics.substring(0, 200) + (storedTopics.length > 200 ? '...' : ''));
         try {
           const parsedTopics = JSON.parse(storedTopics) as { topics: Array<{ topic_name: string; topic_page_start: number; topic_page_end: number; topic_summary: string; }> };
           setAvailableTopics(parsedTopics);
@@ -388,9 +396,38 @@ export function LearningClient({ contentId }: LearningClientProps) {
   // Fetch topics when content data is available
   useEffect(() => {
     if (contentData && !availableTopics && !topicsLoading) {
-      void fetchAvailableTopics();
+      // Add a small delay to allow localStorage to be set if coming from mindmap
+      // Also retry a few times in case of timing issues
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      const tryFetchTopics = () => {
+        console.log(`🔄 Attempt ${retryCount + 1}/${maxRetries} to fetch topics`);
+        
+        // Check if topics exist in localStorage first
+        const storedTopics = localStorage.getItem(`topics_${contentId}`);
+        if (storedTopics) {
+          console.log(`✅ Found topics in localStorage on attempt ${retryCount + 1}`);
+          void fetchAvailableTopics();
+          return;
+        }
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.log(`⏳ No topics found, retrying in ${200 * retryCount}ms...`);
+          setTimeout(tryFetchTopics, 200 * retryCount);
+        } else {
+          console.log('📡 No cached topics found after retries, proceeding with API call');
+          void fetchAvailableTopics();
+        }
+      };
+      
+      // Start with a small initial delay
+      const timer = setTimeout(tryFetchTopics, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [contentData, availableTopics, topicsLoading, fetchAvailableTopics]);
+  }, [contentData, availableTopics, topicsLoading, fetchAvailableTopics, contentId]);
 
   if (loading) {
     return (
