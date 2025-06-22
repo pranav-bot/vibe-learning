@@ -4,7 +4,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "~/components/ui/button";
-import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, MoreHorizontal, Terminal, X } from "lucide-react";
+import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, Terminal, X } from "lucide-react";
 import { conversationalCommandParser, type CommandResult, type CommandAction } from "~/lib/conversational-command-parser";
 import { MermaidDiagram } from "./Diagram";
 
@@ -53,7 +53,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
     {
       id: '1',
       type: 'assistant',
-      content: `Hello! I'm your AI learning assistant${difficultyConfig ? ` set to **${difficultyConfig.emoji} ${difficultyConfig.label}** level` : ''}. I can help you understand and analyze "${contentData?.title ?? 'this content'}". Feel free to ask me any questions about the material!\n\n💡 **Try conversational commands like:**\n• \`/solve all problems on page 28\`\n• \`/visualize biology diagrams\`\n• \`/explain photosynthesis step by step\`${availableTopics?.topics.length ? `\n• \`/explain @${availableTopics.topics[0]?.topic_name} concepts\`` : '\n• \`/explain @topic concepts\` - (topics loading...)'}\n• \`/help\` for more commands`,
+      content: `👋 Hi! I'm **Copilot Chat** for learning${difficultyConfig ? ` (${difficultyConfig.emoji} **${difficultyConfig.label}** level)` : ''}.\n\nI can help you understand **"${contentData?.title ?? 'this content'}"**. Ask me questions or try these commands:\n\n**💡 Quick Commands:**\n• \`/explain\` - Get detailed explanations\n• \`/solve\` - Help with problems\n• \`/visualize\` - Create diagrams${availableTopics?.topics.length ? `\n• \`/explain @${availableTopics.topics[0]?.topic_name}\` - Topic-specific help` : '\n• \`/explain @topic\` - Topic help (loading...)'}\n• \`/help\` - See all commands\n\n*What would you like to explore?*`,
       timestamp: new Date()
     }
   ]);
@@ -262,7 +262,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
           parts.push(
             <span 
               key={match.index}
-              className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 font-mono text-xs backdrop-blur-sm"
+              className="bg-[#f59e0b]/30 text-[#fbbf24] px-1.5 py-0.5 rounded-md border border-[#f59e0b]/50 font-mono text-xs font-medium shadow-sm"
             >
               {matchedText}
             </span>
@@ -283,7 +283,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
           parts.push(
             <span 
               key={match.index}
-              className="bg-green-500/20 text-green-300 px-1.5 py-0.5 rounded border border-green-500/30 font-medium text-xs backdrop-blur-sm"
+              className="bg-[#10b981]/30 text-[#34d399] px-1.5 py-0.5 rounded-md border border-[#10b981]/50 font-medium text-xs shadow-sm"
             >
               {matchedText}
             </span>
@@ -431,7 +431,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
             return (
               <span 
                 key={index}
-                className="bg-amber-500/40 text-amber-100 px-1.5 py-0.5 rounded border border-amber-400/50 font-mono text-sm font-medium shadow-sm"
+                className="bg-[#f59e0b]/30 text-[#fbbf24] px-1.5 py-0.5 rounded-md border border-[#f59e0b]/50 font-mono text-sm font-medium shadow-sm"
                 title={`Valid command: ${token.value}`}
               >
                 {token.value}
@@ -441,7 +441,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
             return (
               <span 
                 key={index}
-                className="bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded border border-amber-400/30 font-mono text-sm opacity-70"
+                className="bg-[#f59e0b]/15 text-[#f59e0b] px-1.5 py-0.5 rounded-md border border-[#f59e0b]/30 font-mono text-sm opacity-70"
                 title={`Invalid command: ${token.value}`}
               >
                 {token.value}
@@ -454,7 +454,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
             return (
               <span 
                 key={index}
-                className="bg-green-500/40 text-green-100 px-1.5 py-0.5 rounded border border-green-400/50 font-medium text-sm shadow-sm"
+                className="bg-[#10b981]/30 text-[#34d399] px-1.5 py-0.5 rounded-md border border-[#10b981]/50 font-medium text-sm shadow-sm"
                 title={`Valid topic: ${token.value}`}
               >
                 {token.value}
@@ -464,7 +464,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
             return (
               <span 
                 key={index}
-                className="bg-green-500/25 text-green-200 px-1.5 py-0.5 rounded border border-green-400/35 font-medium text-sm"
+                className="bg-[#10b981]/20 text-[#10b981] px-1.5 py-0.5 rounded-md border border-[#10b981]/35 font-medium text-sm"
                 title={`Partial topic match: ${token.value}`}
               >
                 {token.value}
@@ -474,7 +474,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
             return (
               <span 
                 key={index}
-                className="bg-green-500/15 text-green-300 px-1.5 py-0.5 rounded border border-green-400/25 font-medium text-sm opacity-60"
+                className="bg-[#10b981]/10 text-[#6b7280] px-1.5 py-0.5 rounded-md border border-[#10b981]/25 font-medium text-sm opacity-60"
                 title={`Unknown topic: ${token.value}`}
               >
                 {token.value}
@@ -485,7 +485,7 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
         case 'text':
         default:
           return (
-            <span key={index} className="text-white">
+            <span key={index} className="text-[#cccccc]">
               {token.value}
             </span>
           );
@@ -509,16 +509,6 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
     if (hasCommands) return 'command';
     if (hasTopics) return 'topic';
     return 'none';
-  };
-
-  const getSystemMessageBgColor = (type?: string) => {
-    switch (type) {
-      case 'success': return 'bg-green-600/80';
-      case 'error': return 'bg-red-600/80';
-      case 'warning': return 'bg-yellow-600/80';
-      case 'info': 
-      default: return 'bg-blue-600/80';
-    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -641,130 +631,164 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
   }));
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-[#1e1e1e] text-[#cccccc]">
       {/* Chat Header */}
-      <div className="border-b border-white/10 px-4 py-3">
-        <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-            <Bot className="h-4 w-4 text-white" />
+      <div className="border-b border-[#2d2d30] px-4 py-3 bg-[#252526]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="h-7 w-7 rounded-md bg-[#0078d4] flex items-center justify-center">
+              <Bot className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-[#cccccc] font-medium text-sm">Copilot Chat</h3>
+              <p className="text-xs text-[#8c8c8c]">Ask questions or use slash commands</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-white font-medium">AI Learning Assistant</h3>
-            <p className="text-xs text-gray-400">Ask questions or use commands (type /help)</p>
-          </div>
+          {difficultyConfig && (
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-[#8c8c8c]">Level:</span>
+              <div className="px-2 py-1 rounded-md bg-[#0078d4]/20 border border-[#0078d4]/30">
+                <span className="text-xs text-[#4fc3f7]">{difficultyConfig.emoji} {difficultyConfig.label}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 px-4 overflow-y-auto" ref={scrollAreaRef}>
-        <div className="space-y-4 py-4">
+      <div className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
+        <div className="space-y-3 py-4">
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex items-start space-x-3 ${
-                message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-              }`}
+              className="px-4"
             >
-              <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${
-                message.type === 'user' 
-                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500' 
-                  : message.type === 'system'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-                  : 'bg-gradient-to-r from-purple-500 to-pink-500'
-              }`}>
-                {message.type === 'user' ? (
-                  <User className="h-4 w-4 text-white" />
-                ) : message.type === 'system' ? (
-                  <Terminal className="h-4 w-4 text-white" />
-                ) : (
-                  <Bot className="h-4 w-4 text-white" />
-                )}
-              </div>
-              
-              <div className={`flex-1 max-w-xs ${message.type === 'user' ? 'text-right' : ''}`}>
-                <div className={`inline-block p-3 rounded-lg text-sm ${
-                  message.type === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : message.type === 'system'
-                    ? `${getSystemMessageBgColor(message.commandResult?.type)} text-white`
-                    : 'bg-white/10 text-white'
-                }`}>
-                  <div className="whitespace-pre-wrap">
-                    {typeof highlightCommands(message.content) === 'string' 
-                      ? message.content 
-                      : highlightCommands(message.content)
-                    }
-                  </div>
-                  
-                  {/* Render Mermaid diagram if available */}
-                  {message.mermaidDiagram && (
-                    <div className="mt-4">
-                      <MermaidDiagram
-                        mermaidCode={message.mermaidDiagram.mermaidCode}
-                        title={message.mermaidDiagram.title}
-                        description={message.mermaidDiagram.description}
-                        className="max-w-full"
-                      />
+              {message.type === 'user' ? (
+                /* User Message */
+                <div className="flex items-start space-x-3 justify-end">
+                  <div className="flex-1 text-right max-w-[80%]">
+                    <div className="inline-block px-4 py-3 rounded-2xl bg-[#0078d4] text-white text-sm shadow-sm">
+                      <div className="whitespace-pre-wrap break-words">
+                        {typeof highlightCommands(message.content) === 'string' 
+                          ? message.content 
+                          : highlightCommands(message.content)
+                        }
+                      </div>
                     </div>
-                  )}
+                    <div className="text-xs text-[#8c8c8c] mt-1 mr-2">
+                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 h-7 w-7 rounded-full bg-[#0078d4] flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
                 </div>
-                
-                {(message.type === 'assistant' || message.type === 'system') && (
-                  <div className="flex items-center space-x-1 mt-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(message.content)}
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-                    >
-                      <Copy className="h-3 w-3" />
-                    </Button>
-                    {message.type === 'assistant' && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-                        >
-                          <ThumbsUp className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-                        >
-                          <ThumbsDown className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-white"
-                        >
-                          <MoreHorizontal className="h-3 w-3" />
-                        </Button>
-                      </>
+              ) : (
+                /* Assistant/System Message */
+                <div className="flex items-start space-x-3">
+                  <div className={`flex-shrink-0 h-7 w-7 rounded-md flex items-center justify-center ${
+                    message.type === 'system'
+                      ? 'bg-[#f59e0b] text-white'
+                      : 'bg-[#0078d4] text-white'
+                  }`}>
+                    {message.type === 'system' ? (
+                      <Terminal className="h-4 w-4" />
+                    ) : (
+                      <Bot className="h-4 w-4" />
                     )}
                   </div>
-                )}
-                
-                <div className="text-xs text-gray-500 mt-1">
-                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  
+                  <div className="flex-1 max-w-[90%]">
+                    <div className={`px-4 py-3 rounded-2xl text-sm shadow-sm ${
+                      message.type === 'system'
+                        ? `border border-l-4 ${
+                            message.commandResult?.type === 'success' 
+                              ? 'bg-[#0d7377]/20 border-l-[#10b981] border-[#10b981]/30' 
+                              : message.commandResult?.type === 'error'
+                              ? 'bg-[#dc2626]/20 border-l-[#dc2626] border-[#dc2626]/30'
+                              : message.commandResult?.type === 'warning'
+                              ? 'bg-[#f59e0b]/20 border-l-[#f59e0b] border-[#f59e0b]/30'
+                              : 'bg-[#374151]/20 border-l-[#6b7280] border-[#6b7280]/30'
+                          }`
+                        : 'bg-[#2d2d30] text-[#cccccc] border border-[#3e3e42]'
+                    }`}>
+                      <div className="whitespace-pre-wrap break-words">
+                        {typeof highlightCommands(message.content) === 'string' 
+                          ? message.content 
+                          : highlightCommands(message.content)
+                        }
+                      </div>
+                      
+                      {/* Render Mermaid diagram if available */}
+                      {message.mermaidDiagram && (
+                        <div className="mt-4 border-t border-[#3e3e42] pt-4">
+                          <MermaidDiagram
+                            mermaidCode={message.mermaidDiagram.mermaidCode}
+                            title={message.mermaidDiagram.title}
+                            description={message.mermaidDiagram.description}
+                            className="max-w-full"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Message Actions */}
+                    <div className="flex items-center space-x-1 mt-2 ml-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(message.content)}
+                        className="h-6 w-6 p-0 text-[#8c8c8c] hover:text-[#cccccc] hover:bg-[#3e3e42]"
+                        title="Copy message"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      {message.type === 'assistant' && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-[#8c8c8c] hover:text-[#cccccc] hover:bg-[#3e3e42]"
+                            title="Good response"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-[#8c8c8c] hover:text-[#cccccc] hover:bg-[#3e3e42]"
+                            title="Poor response"
+                          >
+                            <ThumbsDown className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                      <div className="text-xs text-[#8c8c8c] ml-2">
+                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ))}
           
           {isLoading && (
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                <Bot className="h-4 w-4 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="inline-block p-3 rounded-lg bg-white/10">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            <div className="px-4">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 h-7 w-7 rounded-md bg-[#0078d4] flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="inline-block px-4 py-3 rounded-2xl bg-[#2d2d30] border border-[#3e3e42]">
+                    <div className="flex items-center space-x-2">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-[#0078d4] rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-[#0078d4] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-[#0078d4] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                      <span className="text-xs text-[#8c8c8c]">Thinking...</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -775,10 +799,10 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
 
       {/* Suggested Questions */}
       {messages.length === 1 && (
-        <div className="px-4 py-2 border-t border-white/10">
-          <p className="text-xs text-gray-400 mb-2">Suggested questions and commands:</p>
-          <div className="space-y-1">
-            {suggestedQuestions.map((question, index) => (
+        <div className="px-4 py-3 border-t border-[#2d2d30] bg-[#252526]">
+          <p className="text-xs text-[#8c8c8c] mb-3 font-medium">Try asking:</p>
+          <div className="grid grid-cols-1 gap-2">
+            {suggestedQuestions.slice(0, 6).map((question, index) => (
               <Button
                 key={index}
                 variant="ghost"
@@ -787,9 +811,16 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
                   const commandText = question.startsWith('/') ? question.split(' - ')[0] : question;
                   setInputValue(commandText ?? question);
                 }}
-                className="w-full text-left justify-start text-xs text-gray-300 hover:bg-white/10 h-8"
+                className="w-full text-left justify-start text-xs text-[#cccccc] hover:bg-[#2d2d30] h-auto py-2 px-3 rounded-md border border-[#3e3e42] hover:border-[#0078d4]/50 transition-colors"
               >
-                {question}
+                <div className="flex items-center space-x-2 w-full">
+                  {question.startsWith('/') ? (
+                    <Terminal className="h-3 w-3 text-[#0078d4] flex-shrink-0" />
+                  ) : (
+                    <Bot className="h-3 w-3 text-[#8c8c8c] flex-shrink-0" />
+                  )}
+                  <span className="truncate">{question}</span>
+                </div>
               </Button>
             ))}
           </div>
@@ -797,22 +828,22 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
       )}
 
       {/* Input Area */}
-      <div className="border-t border-white/10 p-4 relative">
-        <div className="flex space-x-2 items-end">
+      <div className="border-t border-[#2d2d30] p-4 bg-[#1e1e1e] relative">
+        <div className="flex space-x-3 items-end">
           <div className="relative flex-1">
             {/* Input container with token-based decoration layer */}
             <div className="relative">
               {/* 3️⃣ DECORATION LAYER - Token highlighting overlay */}
               {hasSpecialTokens(inputValue) && (
                 <div 
-                  className={`absolute inset-0 px-3 py-2 pointer-events-none text-sm rounded-md z-10 ${
+                  className={`absolute inset-0 px-3 py-3 pointer-events-none text-sm rounded-lg z-10 border ${
                     getDecorationStatus(inputValue) === 'command' 
-                      ? 'bg-amber-900/20 border border-amber-500/30'
+                      ? 'bg-[#f59e0b]/10 border-[#f59e0b]/30'
                       : getDecorationStatus(inputValue) === 'topic'
-                      ? 'bg-green-900/20 border border-green-500/30'
+                      ? 'bg-[#10b981]/10 border-[#10b981]/30'
                       : getDecorationStatus(inputValue) === 'mixed'
-                      ? 'bg-purple-900/20 border border-purple-500/30'
-                      : 'border border-white/20'
+                      ? 'bg-[#8b5cf6]/10 border-[#8b5cf6]/30'
+                      : 'border-[#3e3e42]'
                   }`}
                   style={{
                     fontSize: '14px',
@@ -840,20 +871,20 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
                     setShowTopicSuggestions(false);
                   }
                 }}
-                placeholder="Ask a question or type a command (e.g., /help)..."
-                className={`w-full resize-none rounded-md px-3 py-2 text-sm ring-offset-background placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[40px] max-h-[120px] overflow-y-auto relative z-20 ${
+                placeholder="Ask Copilot a question or type / for commands..."
+                className={`w-full resize-none rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0078d4] disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px] max-h-[120px] overflow-y-auto relative z-20 transition-all ${
                   getDecorationStatus(inputValue) === 'command'
-                    ? 'border border-amber-500/50 ring-1 ring-amber-500/30'
+                    ? 'border border-[#f59e0b]/50 ring-1 ring-[#f59e0b]/30'
                     : getDecorationStatus(inputValue) === 'topic'
-                    ? 'border border-green-500/50 ring-1 ring-green-500/30'
+                    ? 'border border-[#10b981]/50 ring-1 ring-[#10b981]/30'
                     : getDecorationStatus(inputValue) === 'mixed'
-                    ? 'border border-purple-500/50 ring-1 ring-purple-500/30'
-                    : 'bg-white/10 text-white border border-white/20'
+                    ? 'border border-[#8b5cf6]/50 ring-1 ring-[#8b5cf6]/30'
+                    : 'bg-[#2d2d30] text-[#cccccc] border border-[#3e3e42] hover:border-[#0078d4]/50'
                 }`}
                 style={{
-                  color: hasSpecialTokens(inputValue) ? 'transparent' : 'white',
-                  caretColor: 'white',
-                  backgroundColor: hasSpecialTokens(inputValue) ? 'transparent' : 'rgb(255 255 255 / 0.1)'
+                  color: hasSpecialTokens(inputValue) ? 'transparent' : '#cccccc',
+                  caretColor: '#cccccc',
+                  backgroundColor: hasSpecialTokens(inputValue) ? 'transparent' : '#2d2d30'
                 }}
                 disabled={isLoading}
                 rows={1}
@@ -862,12 +893,12 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
             
             {/* Command Suggestions Dropdown */}
             {showCommandSuggestions && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 border border-white/20 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
-                <div className="p-2 border-b border-white/10 flex items-center justify-between">
-                  <p className="text-xs text-gray-400">Available Commands:</p>
+              <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#252526] border border-[#3e3e42] rounded-lg shadow-xl max-h-48 overflow-y-auto z-50">
+                <div className="p-3 border-b border-[#3e3e42] flex items-center justify-between">
+                  <p className="text-xs text-[#8c8c8c] font-medium">Available Commands</p>
                   <button
                     onClick={() => setShowCommandSuggestions(false)}
-                    className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
+                    className="text-[#8c8c8c] hover:text-[#cccccc] transition-colors p-1 rounded hover:bg-[#3e3e42]"
                     title="Close suggestions"
                   >
                     <X className="h-3 w-3" />
@@ -883,14 +914,12 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
                       <button
                         key={index}
                         onClick={() => handleCommandSelect(cmd.command)}
-                        className="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded flex items-center justify-between group"
+                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-[#2d2d30] rounded flex items-start space-x-3 group transition-colors"
                       >
-                        <div>
-                          <span className="text-amber-300 font-mono">{cmd.command}</span>
-                          <span className="text-gray-400 text-xs ml-2">{cmd.description}</span>
-                        </div>
-                        <div className="text-xs text-gray-500 opacity-0 group-hover:opacity-100">
-                          Click to use
+                        <Terminal className="h-4 w-4 text-[#f59e0b] mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[#cccccc] font-mono text-sm">{cmd.command}</div>
+                          <div className="text-[#8c8c8c] text-xs mt-1 leading-relaxed">{cmd.description}</div>
                         </div>
                       </button>
                     ))}
@@ -900,12 +929,12 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
 
             {/* Topic Suggestions Dropdown */}
             {showTopicSuggestions && availableTopics?.topics.length && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 border border-white/20 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
-                <div className="p-2 border-b border-white/10 flex items-center justify-between">
-                  <p className="text-xs text-gray-400">Available Topics:</p>
+              <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#252526] border border-[#3e3e42] rounded-lg shadow-xl max-h-48 overflow-y-auto z-50">
+                <div className="p-3 border-b border-[#3e3e42] flex items-center justify-between">
+                  <p className="text-xs text-[#8c8c8c] font-medium">Available Topics</p>
                   <button
                     onClick={() => setShowTopicSuggestions(false)}
-                    className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
+                    className="text-[#8c8c8c] hover:text-[#cccccc] transition-colors p-1 rounded hover:bg-[#3e3e42]"
                     title="Close suggestions"
                   >
                     <X className="h-3 w-3" />
@@ -930,20 +959,20 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
                       <button
                         key={index}
                         onClick={() => handleTopicSelect(topicName)}
-                        className="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded flex items-center justify-between group"
+                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-[#2d2d30] rounded flex items-start space-x-3 group transition-colors"
                       >
-                        <div>
-                          <span className="text-green-300 font-medium">@{topicName}</span>
-                          <span className="text-gray-400 text-xs ml-2">
-                            {availableTopics?.topics.find(t => t.topic_name === topicName)?.topic_summary.slice(0, 60)}...
-                          </span>
+                        <div className="h-4 w-4 bg-[#10b981] rounded-sm flex items-center justify-center mt-0.5 flex-shrink-0">
+                          <span className="text-white text-xs font-bold">#</span>
                         </div>
-                        <div className="text-xs text-gray-500 opacity-0 group-hover:opacity-100">
-                          Click to use
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[#cccccc] font-medium text-sm">@{topicName}</div>
+                          <div className="text-[#8c8c8c] text-xs mt-1 leading-relaxed truncate">
+                            {availableTopics?.topics.find(t => t.topic_name === topicName)?.topic_summary.slice(0, 80)}...
+                          </div>
                         </div>
                       </button>
                     )) : (
-                      <div className="px-3 py-2 text-sm text-gray-400">
+                      <div className="px-3 py-3 text-sm text-[#8c8c8c] text-center">
                         No topics found matching &ldquo;{topicText}&rdquo;
                       </div>
                     );
@@ -957,27 +986,26 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
             onClick={() => void handleSendMessage()}
             disabled={!inputValue.trim() || isLoading}
             size="sm"
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            className="bg-[#0078d4] hover:bg-[#106ebe] text-white h-11 px-4 rounded-lg transition-colors disabled:bg-[#3e3e42] disabled:text-[#8c8c8c]"
           >
             <Send className="h-4 w-4" />
           </Button>
         </div>
         
+        {/* Status indicators */}
         {getDecorationStatus(inputValue) === 'command' && !showCommandSuggestions && !showTopicSuggestions && (
-          <div className="mt-2 text-xs text-amber-300 bg-amber-900/20 px-2 py-1 rounded border border-amber-500/30">
-            💡 Command detected - Press Enter to execute
+          <div className="mt-3 text-xs text-[#f59e0b] bg-[#f59e0b]/10 px-3 py-2 rounded-md border border-[#f59e0b]/30 flex items-center space-x-2">
+            <Terminal className="h-3 w-3" />
+            <span>Command detected - Press Enter to execute</span>
           </div>
         )}
         
         {(getDecorationStatus(inputValue) === 'topic' || getDecorationStatus(inputValue) === 'mixed') && !showTopicSuggestions && !showCommandSuggestions && (
-          <div className="mt-2 text-xs text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-500/30">
-            🏷️ Topic reference detected - Continue typing or press Enter
-          </div>
-        )}
-        
-        {showTopicSuggestions && (
-          <div className="mt-2 text-xs text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-500/30">
-            🏷️ Type @ followed by topic name for contextual commands
+          <div className="mt-3 text-xs text-[#10b981] bg-[#10b981]/10 px-3 py-2 rounded-md border border-[#10b981]/30 flex items-center space-x-2">
+            <div className="h-3 w-3 bg-[#10b981] rounded-sm flex items-center justify-center">
+              <span className="text-white text-xs font-bold">#</span>
+            </div>
+            <span>Topic reference detected - Continue typing or press Enter</span>
           </div>
         )}
       </div>
