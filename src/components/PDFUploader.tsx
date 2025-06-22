@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { env } from "~/env";
 
 interface UploadResponse {
   success: boolean;
@@ -88,7 +87,7 @@ export function PDFUploader({ onUploadSuccess, onUploadError }: PDFUploaderProps
       });
 
       // Send the request
-      xhr.open('POST', `${env.NEXT_PUBLIC_BACKEND_URL}/upload-pdf`);
+      xhr.open('POST', `${process.env.NEXT_PUBLIC_BACKEND_URL}/upload-pdf`);
       xhr.send(formData);
 
       const response = await uploadPromise;

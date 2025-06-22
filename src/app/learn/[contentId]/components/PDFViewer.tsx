@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import { Download, FileText, AlertCircle } from "lucide-react";
-import { env } from "~/env";
 
 interface PDFViewerProps {
   contentId: string;
@@ -27,7 +26,7 @@ export function PDFViewer({ contentId, url, title }: PDFViewerProps) {
         setPdfUrl(url);
       } else {
         // For uploaded files, use the PDF endpoint
-        const fileUrl = `${env.NEXT_PUBLIC_BACKEND_URL}/pdf/${contentId}`;
+        const fileUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/pdf/${contentId}`;
         
         // Test if the PDF exists by making a HEAD request
         try {

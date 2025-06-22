@@ -6,12 +6,10 @@ export type TopicData = {
   topic_summary: string;
 };
 
-import { env } from "~/env";
-
 // Function to fetch page content from FastAPI backend
 export async function fetchPageContent(contentId: string, pageNumber: number): Promise<string> {
   try {
-    const response = await fetch(`${env.NEXT_PUBLIC_BACKEND_URL}/content/${contentId}/page/${pageNumber}`);
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/content/${contentId}/page/${pageNumber}`);
     if (!response.ok) {
       console.warn(`Failed to fetch page ${pageNumber} for content ${contentId}: ${response.status}`);
       return '';

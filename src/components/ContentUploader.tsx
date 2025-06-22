@@ -5,7 +5,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { env } from "~/env";
+
 
 export type ContentType = 'pdf-file' | 'pdf-link' | 'youtube' | 'website';
 
@@ -148,8 +148,8 @@ export function ContentUploader({ onUploadSuccess, onUploadError }: ContentUploa
 
       // Choose endpoint based on content type
       const endpoint = content instanceof File ? 
-        `${env.NEXT_PUBLIC_BACKEND_URL}/upload-pdf` : 
-        `${env.NEXT_PUBLIC_BACKEND_URL}/upload-content`;
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/upload-pdf` : 
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/upload-content`;
 
       xhr.open('POST', endpoint);
       xhr.send(formData);
