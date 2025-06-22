@@ -21,6 +21,17 @@ const cleanMermaidCode = (code: string): string => {
   // Remove any leading/trailing whitespace
   cleaned = cleaned.trim();
   
+  // Remove markdown code block wrappers if present
+  if (cleaned.startsWith('```mermaid')) {
+    cleaned = cleaned.replace(/^```mermaid\s*\n?/, '');
+  }
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*\n?/, '');
+  }
+  if (cleaned.endsWith('```')) {
+    cleaned = cleaned.replace(/\s*```$/, '');
+  }
+  
   // Check if it's a sequence diagram and handle accordingly
   const isSequenceDiagram = cleaned.includes('sequenceDiagram');
   

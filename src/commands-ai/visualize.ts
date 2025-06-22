@@ -34,8 +34,10 @@ const visualize = async (user_query: string, difficulty: string, model: Language
   - Mindmap: For concepts, ideas, or knowledge structures
   - Timeline: For historical events, chronological processes, or development stages
 
+  IMPORTANT: Return ONLY the raw Mermaid diagram code without any markdown code block wrappers (no \`\`\`mermaid or \`\`\`). Start directly with the diagram type (e.g., "flowchart TD" or "sequenceDiagram").
+
   Provide:
-  1. The complete Mermaid diagram code (properly formatted and syntactically correct)
+  1. The complete Mermaid diagram code (properly formatted and syntactically correct, NO code block wrappers)
   2. A brief explanation of why this diagram type was chosen
   3. Key insights that the visualization reveals about the concept
   4. How this visualization aids in understanding the topic at the ${difficulty} level

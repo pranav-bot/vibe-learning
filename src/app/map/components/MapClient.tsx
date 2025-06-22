@@ -213,7 +213,6 @@ export default function MapClient() {
         saveProjectsMutation.mutate({
           roadmapId: roadmapId,
           projects: data.data.map(project => ({
-            id: project.id,
             title: project.title,
             description: project.description,
             difficulty: convertDifficulty(project.difficulty),

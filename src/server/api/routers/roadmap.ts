@@ -566,7 +566,6 @@ export const roadmapRouter = createTRPCRouter({
     .input(z.object({
       roadmapId: z.string(),
       projects: z.array(z.object({
-        id: z.string(),
         title: z.string(),
         description: z.string(),
         difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]),
@@ -611,7 +610,8 @@ export const roadmapRouter = createTRPCRouter({
         for (const project of input.projects) {
           const savedProject = await db.project.create({
             data: {
-              id: project.id,
+              // Don't use the provided ID to avoid unique constraint failures
+              // Let the database generate a unique ID automatically
               title: project.title,
               description: project.description,
               difficulty: project.difficulty,
