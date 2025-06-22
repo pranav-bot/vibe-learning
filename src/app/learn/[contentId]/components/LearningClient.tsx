@@ -277,6 +277,7 @@ export function LearningClient({ contentId }: LearningClientProps) {
       
       let response;
       if (contentData.content_type === 'youtube') {
+        console.log("url", process.env.NEXT_PUBLIC_BACKEND_URL);
         console.log('🎥 Extracting topics from YouTube content');
         if (!contentData.url) {
           throw new Error("YouTube content missing URL");
