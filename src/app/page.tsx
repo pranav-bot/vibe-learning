@@ -14,6 +14,8 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  console.log(process.env.NEXT_PUBLIC_BACKEND_URL);
+
   return (
     <HydrateClient>
       <div className="min-h-screen bg-background">
