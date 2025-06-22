@@ -12,6 +12,7 @@ import { WebsiteViewer } from "./WebsiteViewer";
 import { ChatPanel } from "./ChatPanel";
 import { type ContentType } from "~/components/ContentUploader";
 import { type CommandAction } from "~/lib/conversational-command-parser";
+import { env } from "~/env";
 
 interface ContentData {
   content_id: string;
@@ -103,7 +104,7 @@ export function LearningClient({ contentId }: LearningClientProps) {
       }
 
       // Try to fetch from backend
-      const response = await fetch(`http://localhost:8000/content/${contentId}`);
+      const response = await fetch(`${env.NEXT_PUBLIC_BACKEND_URL}/content/${contentId}`);
       if (response.ok) {
         const data = await response.json() as ContentData;
         setContentData(data);

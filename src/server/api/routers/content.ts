@@ -6,6 +6,9 @@ import visualize from "~/commands-ai/visualize";
 import { generateTopicComparison } from "~/commands-ai/compare";
 import llms from "~/lib/llms";
 
+// Backend URL for server-side requests
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+
 // Define the input structure that matches the Python backend response
 const ContentInput = z.object({
   total_pages: z.number(),
@@ -26,7 +29,7 @@ export const contentRouter = createTRPCRouter({
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for fetch
         
-        const response = await fetch(`http://localhost:8000/content/${input.contentId}/topic-extractor-format`, {
+        const response = await fetch(`${BACKEND_URL}/content/${input.contentId}/topic-extractor-format`, {
           signal: controller.signal
         });
         
@@ -109,7 +112,7 @@ export const contentRouter = createTRPCRouter({
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for transcript extraction
         
-        const response = await fetch('http://localhost:8000/youtube-transcript', {
+        const response = await fetch(`${BACKEND_URL}/youtube-transcript`, {
           method: 'POST',
           body: formData,
           signal: controller.signal
@@ -138,7 +141,7 @@ export const contentRouter = createTRPCRouter({
         }
         
         // Get the transcript text
-        const transcriptResponse = await fetch(`http://localhost:8000/content/${responseData.data.content_id}/transcript`);
+        const transcriptResponse = await fetch(`${BACKEND_URL}/content/${responseData.data.content_id}/transcript`);
         
         if (!transcriptResponse.ok) {
           throw new Error("Failed to retrieve transcript text");
