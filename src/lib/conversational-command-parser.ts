@@ -153,32 +153,15 @@ export class ConversationalCommandParser {
         '/solve @physics problems',
         '/solve this differential equation'
       ],
-      execute: (parsed, context) => {
-        // Handle topic reference if present
-        if (parsed.referencedTopic) {
-          console.log(`🎯 Solving problems with topic context:`, parsed.referencedTopic);
-          console.log(`📖 Topic: ${parsed.referencedTopic.topic_name} (Pages ${parsed.referencedTopic.topic_page_start}-${parsed.referencedTopic.topic_page_end})`);
-        }
-        
-        if (context?.previousCommandResult) {
-          console.log(`output of ${context.previousCommandType} command`, context.previousCommandResult, `passed to output of solve command`, { parsed, context });
-        } else {
-          console.log('output of solve command', { parsed, context });
-        }
-        
-        // Generate mock data for chaining
-        const solveData = {
-          command: 'solve',
-          target: parsed.target,
-          topicContext: parsed.referencedTopic,
-          solutions: [`Solution for: ${parsed.target}${parsed.referencedTopic ? ` (Topic: ${parsed.referencedTopic.topic_name})` : ''}`],
-          context: context?.previousCommandResult ? 'Used previous command result' : 'Fresh execution'
-        };
-        
+      execute: (parsed, _context) => {
         return {
           success: true,
-          message: `🧮 **Solve command executed**${parsed.referencedTopic ? ` with topic "${parsed.referencedTopic.topic_name}"` : ''} - Check console for details`,
-          data: solveData,
+          message: `🚧 **Solve command is in development** - This feature will be available soon!`,
+          data: {
+            command: 'solve',
+            target: parsed.target,
+            status: 'in_development'
+          },
           type: 'info'
         };
       }
@@ -455,25 +438,15 @@ export class ConversationalCommandParser {
         '/goto conclusion section',
         '/goto bibliography'
       ],
-      execute: (parsed, context) => {
-        if (context?.previousCommandResult) {
-          console.log(`output of ${context.previousCommandType} command`, context.previousCommandResult, `passed to output of goto command`, { parsed, context });
-        } else {
-          console.log('output of goto command', { parsed, context });
-        }
-        
-        // Generate mock data for chaining
-        const gotoData = {
-          command: 'goto',
-          target: parsed.target,
-          navigation: `Navigated to: ${parsed.target}`,
-          context: context?.previousCommandResult ? 'Navigation enhanced by previous results' : 'Direct navigation'
-        };
-        
+      execute: (parsed, _context) => {
         return {
           success: true,
-          message: `📖 **Goto command executed** - Check console for details`,
-          data: gotoData,
+          message: `🚧 **Goto command is in development** - This feature will be available soon!`,
+          data: {
+            command: 'goto',
+            target: parsed.target,
+            status: 'in_development'
+          },
           type: 'info'
         };
       }
@@ -495,29 +468,15 @@ export class ConversationalCommandParser {
         '/analyze writing style',
         '/analyze trends of last 10 years and /explain with regard to biology data'
       ],
-      execute: (parsed, context) => {
-        if (context?.previousCommandResult) {
-          console.log(`output of ${context.previousCommandType} command`, context.previousCommandResult, `passed to output of analyze command`, { parsed, context });
-        } else {
-          console.log('output of analyze command', { parsed, context });
-        }
-        
-        // Generate mock analysis data for chaining
-        const analysisData = {
-          command: 'analyze',
-          target: parsed.target,
-          analysis: {
-            trends: [`Trend analysis of: ${parsed.target}`],
-            patterns: [`Pattern identified in: ${parsed.target}`],
-            insights: [`Key insights from: ${parsed.target}`]
-          },
-          context: context?.previousCommandResult ? 'Analysis enhanced by previous results' : 'Fresh analysis'
-        };
-        
+      execute: (parsed, _context) => {
         return {
           success: true,
-          message: `🔬 **Analyze command executed** - Check console for details`,
-          data: analysisData,
+          message: `🚧 **Analyze command is in development** - This feature will be available soon!`,
+          data: {
+            command: 'analyze',
+            target: parsed.target,
+            status: 'in_development'
+          },
           type: 'info'
         };
       }
@@ -550,6 +509,12 @@ export class ConversationalCommandParser {
             command.examples.forEach(example => {
               help += `• \`${example}\`\n`;
             });
+            
+            // Add development status for non-implemented commands
+            if (['solve', 'goto', 'analyze', 'help'].includes(command.name)) {
+              help += `\n🚧 **Status:** In Development`;
+            }
+            
             return {
               success: true,
               message: help,
@@ -564,10 +529,15 @@ export class ConversationalCommandParser {
           }
         }
 
-        // General help
+        // General help with development status
+        let helpMessage = this.getCommandHelp();
+        helpMessage += `\n🚧 **Development Status:**\n`;
+        helpMessage += `• **Fully Available:** /explain, /compare, /visualize\n`;
+        helpMessage += `• **In Development:** /solve, /goto, /analyze, /help\n`;
+        
         return {
           success: true,
-          message: this.getCommandHelp(),
+          message: helpMessage,
           type: 'info'
         };
       }
