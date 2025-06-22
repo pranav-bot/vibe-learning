@@ -473,7 +473,7 @@ export default function MapClient() {
           <Card>
             <CardHeader>
               <CardTitle>Create Your Learning Roadmap</CardTitle>
-              <CardDescription>Enter a topic and difficulty level to generate a comprehensive learning path</CardDescription>
+              <CardDescription>Enter a topic and difficulty level to generate a comprehensive roadmap</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -895,10 +895,10 @@ export default function MapClient() {
             </DraggableWindow>
           )}
 
-          {/* Learning Path Overview Window */}
+          {/* Roadmap Overview Window */}
           {windows.learningPath.visible && (
             <DraggableWindow
-              title="Learning Path Overview"
+              title="Roadmap Overview"
               initialPosition={{ x: 50, y: 100 }}
               initialSize={{ width: 350, height: 400 }}
               isMinimized={windows.learningPath.minimized}
@@ -1070,7 +1070,7 @@ export default function MapClient() {
               ) : (
                 <div className="text-center text-muted-foreground p-8">
                   <p>No projects generated yet.</p>
-                  <p className="text-sm mt-2">Generate projects from the Learning Path Overview to get started!</p>
+                  <p className="text-sm mt-2">Generate projects from the Roadmap Overview to get started!</p>
                 </div>
               )}
             </DraggableWindow>
@@ -1091,7 +1091,7 @@ export default function MapClient() {
                 size="sm"
                 onClick={() => setWindows(prev => ({ ...prev, learningPath: { visible: true, minimized: false } }))}
               >
-                Show Learning Path
+                Show Roadmap
               </Button>
             )}
             {!windows.projects.visible && projects.length > 0 && (

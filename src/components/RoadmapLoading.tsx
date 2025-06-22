@@ -63,7 +63,7 @@ export default function RoadmapLoading({ topic, difficulty }: RoadmapLoadingProp
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Building mindmap structure...</p>
-                      <p className="text-xs text-muted-foreground">Creating hierarchical learning paths</p>
+                      <p className="text-xs text-muted-foreground">Creating hierarchical roadmap structure</p>
                     </div>
                   </div>
                 </div>

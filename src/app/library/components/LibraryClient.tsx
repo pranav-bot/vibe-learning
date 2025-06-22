@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Card } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -135,7 +135,7 @@ export default function LibraryClient() {
           {/* Previously Generated Roadmaps */}
           {userRoadmapsQuery.data?.data && userRoadmapsQuery.data.data.length > 0 && (
             <div className="mt-12">
-              <h2 className="text-2xl font-bold mb-6">Your Learning Roadmaps</h2>
+              <h2 className="text-2xl font-bold mb-6">Your Roadmaps</h2>
               <div className="max-h-96 overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
                   {userRoadmapsQuery.data.data.map((roadmap) => (
@@ -176,7 +176,7 @@ export default function LibraryClient() {
           {/* Loading state for roadmaps */}
           {userRoadmapsQuery.isLoading && (
             <div className="mt-12">
-              <h2 className="text-2xl font-bold mb-6">Your Learning Roadmaps</h2>
+              <h2 className="text-2xl font-bold mb-6">Your Roadmaps</h2>
               <div className="max-h-96 overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
                   {[1, 2, 3, 4, 5, 6].map((i) => (

@@ -20,7 +20,7 @@ const RoadmapSchema = z.object({
   title: z.string().describe("The title of the complete learning roadmap"),
   description: z.string().describe("An overview of what the roadmap covers"),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]).describe("The difficulty level of the roadmap"),
-  rootTopics: z.array(z.string()).describe("Array of root topic IDs that start the learning path"),
+  rootTopics: z.array(z.string()).describe("Array of root topic IDs that start the roadmap"),
   topics: z.array(TopicSchema).describe("Array of all topics in the roadmap for easy lookup and mindmap creation")
 });
 

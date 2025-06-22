@@ -135,7 +135,7 @@ export default function DifficultyDialog({ isOpen, onClose, courseTitle }: Diffi
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">Generating Your Roadmap</h3>
                 <p className="text-sm text-muted-foreground">
-                  Creating a personalized learning path for <strong>{courseTitle}</strong>
+                  Creating a personalized roadmap for <strong>{courseTitle}</strong>
                 </p>
                 <p className="text-xs text-muted-foreground">
                   This may take a moment...

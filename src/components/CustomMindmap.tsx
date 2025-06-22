@@ -552,7 +552,7 @@ export default function CustomMindmap({ roadmap, onTopicSelect, selectedTopic }:
       <div className="absolute top-4 left-4 z-10">
         <Card className="p-3 shadow-lg bg-gray-900/95 border-gray-700 backdrop-blur-sm">
           <div className="space-y-2">
-            <div className="text-xs font-medium text-gray-200">Learning Path Levels</div>
+            <div className="text-xs font-medium text-gray-200">Roadmap Levels</div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded-full bg-blue-500"></div>
               <span className="text-xs text-gray-300">Main Topic</span>
