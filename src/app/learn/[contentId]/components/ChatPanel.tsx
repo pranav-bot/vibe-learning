@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, MoreHorizontal, Terminal, X } from "lucide-react";
 import { conversationalCommandParser, type CommandResult, type CommandAction } from "~/lib/conversational-command-parser";
+import { MermaidDiagram } from "./Diagram";
 
 // Import difficulty types
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert';
@@ -26,6 +27,11 @@ interface Message {
   timestamp: Date;
   commandResult?: CommandResult;
   actions?: CommandAction[];
+  mermaidDiagram?: {
+    mermaidCode: string;
+    title: string;
+    description: string;
+  };
 }
 
 interface ChatPanelProps {
@@ -152,13 +158,32 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
           }
         }
 
+        // Extract mermaid diagram data if this is a visualization command
+        let mermaidDiagram: { mermaidCode: string; title: string; description: string; } | undefined;
+        if ('data' in commandResult && 
+            commandResult.data && 
+            typeof commandResult.data === 'object' && 
+            'mermaidDiagram' in commandResult.data &&
+            commandResult.data.mermaidDiagram &&
+            typeof commandResult.data.mermaidDiagram === 'object' &&
+            'mermaidCode' in commandResult.data.mermaidDiagram &&
+            'title' in commandResult.data.mermaidDiagram &&
+            'description' in commandResult.data.mermaidDiagram) {
+          mermaidDiagram = {
+            mermaidCode: commandResult.data.mermaidDiagram.mermaidCode as string,
+            title: commandResult.data.mermaidDiagram.title as string,
+            description: commandResult.data.mermaidDiagram.description as string
+          };
+        }
+
         const commandResponseMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: 'system',
           content: commandResult.message,
           timestamp: new Date(),
           commandResult,
-          actions: ('data' in commandResult && 'actions' in commandResult) ? commandResult.actions : undefined
+          actions: ('data' in commandResult && 'actions' in commandResult) ? commandResult.actions : undefined,
+          mermaidDiagram
         };
 
         setMessages(prev => [...prev, commandResponseMessage]);
@@ -670,6 +695,18 @@ export function ChatPanel({ contentId, contentData, onCommandAction, difficulty:
                       : highlightCommands(message.content)
                     }
                   </div>
+                  
+                  {/* Render Mermaid diagram if available */}
+                  {message.mermaidDiagram && (
+                    <div className="mt-4">
+                      <MermaidDiagram
+                        mermaidCode={message.mermaidDiagram.mermaidCode}
+                        title={message.mermaidDiagram.title}
+                        description={message.mermaidDiagram.description}
+                        className="max-w-full"
+                      />
+                    </div>
+                  )}
                 </div>
                 
                 {(message.type === 'assistant' || message.type === 'system') && (

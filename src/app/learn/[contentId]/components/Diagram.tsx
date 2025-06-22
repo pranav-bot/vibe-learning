@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import mermaid from 'mermaid';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Button } from '~/components/ui/button';
@@ -14,13 +14,110 @@ interface DiagramProps {
   className?: string;
 }
 
+// Helper function to clean and fix common Mermaid syntax issues
+const cleanMermaidCode = (code: string): string => {
+  let cleaned = code;
+  
+  // Remove any leading/trailing whitespace
+  cleaned = cleaned.trim();
+  
+  // Check if it's a sequence diagram and handle accordingly
+  const isSequenceDiagram = cleaned.includes('sequenceDiagram');
+  
+  if (isSequenceDiagram) {
+    // Fix sequence diagram specific issues
+    
+    // Fix arrow syntax for sequence diagrams
+    cleaned = cleaned.replace(/-->/g, '-->>');
+    cleaned = cleaned.replace(/->>/g, '->>');
+    cleaned = cleaned.replace(/-->>>/g, '-->>');
+    cleaned = cleaned.replace(/->>>/g, '->>');
+    
+    // Fix participant names - remove special characters and ensure proper formatting
+    cleaned = cleaned.replace(/participant\s+([^:\n]+)/g, (_match: string, name: string) => {
+      const cleanName = name.trim().replace(/[^\w\s]/g, '');
+      return `participant ${cleanName}`;
+    });
+    
+    // Fix message syntax - ensure proper format
+    cleaned = cleaned.replace(/([A-Za-z]\w*)\s*-\s*>>\s*([A-Za-z]\w*)\s*:\s*(.+)/g, '$1->>$2: $3');
+    cleaned = cleaned.replace(/([A-Za-z]\w*)\s*-\s*-\s*>>\s*([A-Za-z]\w*)\s*:\s*(.+)/g, '$1-->>$2: $3');
+    
+    // Clean message text
+    cleaned = cleaned.replace(/:\s*([^\n]+)/g, (_match: string, text: string) => {
+      const cleanText = text.replace(/[^\w\s\-+='()!?]/g, ' ').trim();
+      return `: ${cleanText}`;
+    });
+    
+    // Fix Note syntax
+    cleaned = cleaned.replace(/Note\s+over\s+([^:]+):\s*(.+)/g, (_match: string, participants: string, note: string) => {
+      const cleanParticipants = participants.trim().replace(/[^\w\s,]/g, '');
+      const cleanNote = note.replace(/[^\w\s\-+='()!?:]/g, ' ').trim();
+      return `Note over ${cleanParticipants}: ${cleanNote}`;
+    });
+    
+  } else {
+    // Handle other diagram types
+    
+    // Fix common arrow syntax issues
+    cleaned = cleaned.replace(/-->/g, ' --> ');
+    cleaned = cleaned.replace(/\s+-->\s+/g, ' --> ');
+    
+    // Fix node text that might contain problematic characters
+    cleaned = cleaned.replace(/([A-Z]+)\{([^}]+)\}/g, (_match: string, nodeId: string, text: string) => {
+      // For diamond nodes, ensure proper text formatting
+      const cleanText = text.replace(/[^\w\s\-+='?]/g, ' ').trim();
+      return `${nodeId}{${cleanText}}`;
+    });
+    
+    // Fix node text in brackets
+    cleaned = cleaned.replace(/([A-Z]+)\[([^\]]+)\]/g, (_match: string, nodeId: string, text: string) => {
+      const cleanText = text.replace(/[^\w\s\-+='?]/g, ' ').trim();
+      return `${nodeId}[${cleanText}]`;
+    });
+    
+    // Fix node text in parentheses
+    cleaned = cleaned.replace(/([A-Z]+)\(([^)]+)\)/g, (_match: string, nodeId: string, text: string) => {
+      const cleanText = text.replace(/[^\w\s\-+='?]/g, ' ').trim();
+      return `${nodeId}(${cleanText})`;
+    });
+  }
+  
+  // Common fixes for all diagram types
+  
+  // Ensure proper line endings
+  cleaned = cleaned.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
+  // Remove empty lines and normalize spacing
+  cleaned = cleaned.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .join('\n');
+  
+  // Fix indentation for nested elements
+  cleaned = cleaned.split('\n').map(line => {
+    if (line.trim().startsWith('alt ') || 
+        line.trim().startsWith('else') || 
+        line.trim().startsWith('end') ||
+        line.trim().startsWith('activate ') ||
+        line.trim().startsWith('deactivate ')) {
+      return '    ' + line.trim();
+    }
+    return line.trim();
+  }).join('\n');
+  
+  return cleaned;
+};
+
+// Global flag to track if mermaid has been initialized
+let mermaidInitialized = false;
+
 export const MermaidDiagram: React.FC<DiagramProps> = ({
   mermaidCode,
   title,
   description,
   className = ''
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [diagramId] = useState(() => `mermaid-${Math.random().toString(36).substr(2, 9)}`);
@@ -31,56 +128,110 @@ export const MermaidDiagram: React.FC<DiagramProps> = ({
         setIsLoading(true);
         setError(null);
 
-        // Initialize Mermaid with configuration
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: 'default',
-          securityLevel: 'loose',
-          fontFamily: 'inherit',
-          fontSize: 14,
-          flowchart: {
-            useMaxWidth: true,
-            htmlLabels: true,
-            curve: 'basis'
-          },
-          sequence: {
-            diagramMarginX: 50,
-            diagramMarginY: 10,
-            actorMargin: 50,
-            width: 150,
-            height: 65,
-            boxMargin: 10,
-            boxTextMargin: 5,
-            noteMargin: 10,
-            messageMargin: 35,
-            mirrorActors: true,
-            bottomMarginAdj: 1,
-            useMaxWidth: true,
-            rightAngles: false,
-            showSequenceNumbers: false
-          },
-          gantt: {
-            useMaxWidth: true,
-            leftPadding: 75,
-            gridLineStartPadding: 35,
-            fontSize: 11,
-            sectionFontSize: 24,
-            numberSectionStyles: 4
-          }
-        });
+        console.log('Initializing Mermaid with code:', mermaidCode);
 
-        if (containerRef.current) {
-          // Clear previous content
-          containerRef.current.innerHTML = '';
+        // Initialize Mermaid with configuration only once globally
+        if (!mermaidInitialized) {
+          mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'inherit',
+            fontSize: 14,
+            flowchart: {
+              useMaxWidth: true,
+              htmlLabels: true,
+              curve: 'basis'
+            },
+            sequence: {
+              diagramMarginX: 50,
+              diagramMarginY: 10,
+              actorMargin: 50,
+              width: 150,
+              height: 65,
+              boxMargin: 10,
+              boxTextMargin: 5,
+              noteMargin: 10,
+              messageMargin: 35,
+              mirrorActors: true,
+              bottomMarginAdj: 1,
+              useMaxWidth: true,
+              rightAngles: false,
+              showSequenceNumbers: false
+            },
+            gantt: {
+              useMaxWidth: true,
+              leftPadding: 75,
+              gridLineStartPadding: 35,
+              fontSize: 11,
+              sectionFontSize: 24,
+              numberSectionStyles: 4
+            }
+          });
+          mermaidInitialized = true;
+          console.log('Mermaid initialized');
+        }
+
+        // Wait for the component to render and try multiple times to find the container
+        let container = null;
+        let retries = 0;
+        const maxRetries = 20;
+        
+        while (!container && retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          container = document.getElementById(diagramId);
+          retries++;
+          console.log(`Attempt ${retries}: Container found:`, !!container);
+        }
+
+        if (!container) {
+          throw new Error(`Container element not found after ${maxRetries} attempts (${maxRetries * 100}ms)`);
+        }
+
+        // Clear previous content
+        container.innerHTML = '';
+        
+        console.log('Container found, rendering with ID:', diagramId);
+        
+        // Clean and validate the mermaid code first
+        const cleanedCode = cleanMermaidCode(mermaidCode);
+        console.log('Original Mermaid code:', mermaidCode);
+        console.log('Cleaned Mermaid code:', cleanedCode);
+        
+        try {
+          await mermaid.parse(cleanedCode);
+          console.log('Mermaid code is valid');
+        } catch (parseError) {
+          console.error('Mermaid parse error:', parseError);
+          console.error('Problematic Mermaid code:', cleanedCode);
           
-          // Validate and render the diagram
-          const validationResult = await mermaid.parse(mermaidCode);
-          if (validationResult) {
-            const { svg } = await mermaid.render(diagramId, mermaidCode);
-            containerRef.current.innerHTML = svg;
-          } else {
-            throw new Error('Invalid Mermaid syntax');
+          // Try to provide a more helpful error message
+          let errorMessage = `Invalid Mermaid syntax: ${String(parseError)}`;
+          
+          // Check for common issues and suggest fixes
+          if (String(parseError).includes('PS')) {
+            errorMessage += '\n\nPossible issues:\n- Check node syntax (use [] for rectangles, () for rounded, {} for diamonds)\n- Verify arrow syntax (use --> or -->) \n- Check for special characters in node text';
           }
+          
+          throw new Error(errorMessage);
+        }
+        
+        // Use the proper render API with cleaned code
+        const renderResult = await mermaid.render(`${diagramId}-svg`, cleanedCode);
+        console.log('Render result:', renderResult);
+        
+        if (renderResult?.svg) {
+          // Insert the SVG into the DOM
+          container.innerHTML = renderResult.svg;
+          console.log('SVG inserted into container');
+          
+          // Bind any interactive events
+          if (renderResult.bindFunctions) {
+            renderResult.bindFunctions(container);
+            console.log('Event bindings applied');
+          }
+        } else {
+          throw new Error('No SVG returned from render');
         }
       } catch (err) {
         console.error('Mermaid rendering error:', err);
@@ -90,8 +241,13 @@ export const MermaidDiagram: React.FC<DiagramProps> = ({
       }
     };
 
-    if (mermaidCode) {
+    if (mermaidCode?.trim()) {
+      console.log('Starting mermaid initialization');
       void initializeMermaid();
+    } else {
+      console.log('No mermaid code provided');
+      setIsLoading(false);
+      setError('No mermaid code provided');
     }
   }, [mermaidCode, diagramId]);
 
@@ -105,8 +261,9 @@ export const MermaidDiagram: React.FC<DiagramProps> = ({
   };
 
   const downloadSVG = () => {
-    if (containerRef.current) {
-      const svgElement = containerRef.current.querySelector('svg');
+    const container = document.getElementById(diagramId);
+    if (container) {
+      const svgElement = container.querySelector('svg');
       if (svgElement) {
         const svgData = new XMLSerializer().serializeToString(svgElement);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -126,8 +283,9 @@ export const MermaidDiagram: React.FC<DiagramProps> = ({
   };
 
   const openFullscreen = () => {
-    if (containerRef.current) {
-      const svgElement = containerRef.current.querySelector('svg');
+    const container = document.getElementById(diagramId);
+    if (container) {
+      const svgElement = container.querySelector('svg');
       if (svgElement) {
         const newWindow = window.open('', '_blank');
         if (newWindow) {
@@ -233,15 +391,19 @@ export const MermaidDiagram: React.FC<DiagramProps> = ({
           </div>
         )}
         
-        {!isLoading && !error && (
-          <div className="mermaid-container overflow-x-auto">
-            <div 
-              ref={containerRef} 
-              className="flex justify-center items-center min-h-[200px] w-full"
-              style={{ lineHeight: 1.5 }}
-            />
-          </div>
-        )}
+        {/* Always render the container, but hide it while loading or if there's an error */}
+        <div className="mermaid-container overflow-x-auto" style={{ display: isLoading || error ? 'none' : 'block' }}>
+          <div 
+            id={diagramId}
+            className="w-full min-h-[200px]"
+            style={{ 
+              lineHeight: 1.5,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start'
+            }}
+          />
+        </div>
       </CardContent>
     </Card>
   );

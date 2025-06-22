@@ -88,14 +88,23 @@ export class ConversationalCommandParser {
   // Extract topic reference from command input
   private extractTopicReference(input: string): { cleanInput: string; topicReference?: string } {
     // Updated regex to include hyphens, underscores, and other common characters in topic names
-    // Match @<topic_name> where topic_name can contain word characters, hyphens, underscores
-    const topicRegex = /@([\w-]+(?:\s+[\w-]+)*)/g;
+    // Match @<topic_name> where topic_name can be any non-whitespace characters
+    const topicRegex = /@(\S+)/g;
     const matches = input.match(topicRegex);
     
     if (matches && matches.length > 0) {
       // For now, take the first topic reference (could be extended to handle multiple)
       const topicReference = matches[0]?.replace('@', '').trim();
-      // Remove the topic reference from the input but keep proper spacing
+      
+      // Special handling for compare and visualize commands - don't remove topic references
+      if (input.startsWith('/compare') || input.startsWith('/visualize')) {
+        return {
+          cleanInput: input,
+          topicReference
+        };
+      }
+      
+      // For other commands, remove the topic reference from the input but keep proper spacing
       const cleanInput = input.replace(topicRegex, '').replace(/\s+/g, ' ').trim();
       
       return {
@@ -191,34 +200,90 @@ export class ConversationalCommandParser {
         '/visualize data trends @statistics',
         '/visualize this concept map'
       ],
-      execute: (parsed, context) => {
+      execute: async (parsed, _context) => {
         // Handle topic reference if present
         if (parsed.referencedTopic) {
           console.log(`🎯 Visualizing with topic context:`, parsed.referencedTopic);
           console.log(`📖 Topic: ${parsed.referencedTopic.topic_name} (Pages ${parsed.referencedTopic.topic_page_start}-${parsed.referencedTopic.topic_page_end})`);
-        }
-        
-        if (context?.previousCommandResult) {
-          console.log(`output of ${context.previousCommandType} command`, context.previousCommandResult, `passed to output of visualize command`, { parsed, context });
+          
+          try {
+            // Call the visualize API with topic context
+            const response = await fetch('/api/trpc/content.visualizeContent', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                json: {
+                  userQuery: parsed.target ?? '',
+                  difficulty: 'intermediate', // Could be made configurable
+                  topic: parsed.referencedTopic
+                }
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error(`API call failed: ${response.status}`);
+            }
+
+            const result = await response.json() as {
+              result?: {
+                data?: {
+                  json?: {
+                    success?: boolean;
+                    data?: {
+                      mermaidCode?: string;
+                      diagram_type?: string;
+                      explanation?: string;
+                      key_insights?: string;
+                      educational_value?: string;
+                    };
+                  };
+                };
+              };
+            };
+            
+            // Handle the TRPC response structure correctly
+            const apiResponse = result.result?.data?.json;
+            
+            if (apiResponse?.success && apiResponse.data) {
+              const visualData = apiResponse.data;
+              return {
+                success: true,
+                message: `📊 **Visualization Generated**\n\n**Type:** ${visualData.diagram_type}\n\n**Explanation:** ${visualData.explanation}\n\n**Key Insights:** ${visualData.key_insights}\n\n**Educational Value:** ${visualData.educational_value}`,
+                data: {
+                  command: 'visualize',
+                  target: parsed.target,
+                  topicContext: parsed.referencedTopic,
+                  visualization: visualData,
+                  // Add mermaid-specific data for rendering
+                  mermaidDiagram: {
+                    mermaidCode: visualData.mermaidCode,
+                    title: `${visualData.diagram_type} - ${parsed.referencedTopic?.topic_name}`,
+                    description: visualData.explanation
+                  }
+                },
+                type: 'success'
+              };
+            } else {
+              console.error('API response structure:', result);
+              throw new Error('API returned unsuccessful result or missing visualization data');
+            }
+          } catch (error) {
+            console.error('Error calling visualize API:', error);
+            return {
+              success: false,
+              message: `❌ **Failed to generate visualization**: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              type: 'error'
+            };
+          }
         } else {
-          console.log('output of visualize command', { parsed, context });
+          return {
+            success: false,
+            message: '❌ **Visualization requires a topic reference** - Use @<topic_name> to specify which topic to visualize',
+            type: 'error'
+          };
         }
-        
-        // Generate mock data for chaining
-        const visualizeData = {
-          command: 'visualize',
-          target: parsed.target,
-          topicContext: parsed.referencedTopic,
-          visualizations: [`Visualization of: ${parsed.target}${parsed.referencedTopic ? ` (Topic: ${parsed.referencedTopic.topic_name})` : ''}`],
-          context: context?.previousCommandResult ? 'Enhanced with previous results' : 'Fresh visualization'
-        };
-        
-        return {
-          success: true,
-          message: `📊 **Visualize command executed**${parsed.referencedTopic ? ` with topic "${parsed.referencedTopic.topic_name}"` : ''} - Check console for details`,
-          data: visualizeData,
-          type: 'info'
-        };
       }
     });
 
@@ -228,7 +293,7 @@ export class ConversationalCommandParser {
       description: 'Provide detailed explanations of concepts or sections',
       patterns: [
         /^\/explain\s+(.*?)\s+(?:on\s+|from\s+)?(?:page\s+)?(\d+)/i,
-        /^\/explain\s+(step\s+by\s+step\s+)?(.*)/i,
+        /^\/explain\s+(step\s+by\s+)?(.*)/i,
         /^\/explain\s+(.+)/i,  // More flexible - require at least one character
         /^\/explain$/i         // Handle case with no arguments
       ],
@@ -505,6 +570,173 @@ export class ConversationalCommandParser {
           message: this.getCommandHelp(),
           type: 'info'
         };
+      }
+    });
+
+    // Compare command - compares two topics
+    this.registerCommand({
+      name: 'compare',
+      description: 'Compare two topics to understand their similarities, differences, and relationships',
+      patterns: [
+        /^\/compare\s+@(\S+)\s+(?:and|with|vs|versus)\s+@(\S+)/i,
+        /^\/compare\s+@(\S+)\s+@(\S+)/i,
+        /^\/compare\s+(.*?)\s+(?:and|with|vs|versus)\s+(.*)/i,
+        /^\/compare\s+(.*)/i
+      ],
+      examples: [
+        '/compare @algebra and @calculus',
+        '/compare @biology vs @chemistry',
+        '/compare @machine-learning with @deep-learning',
+        '/compare photosynthesis and cellular respiration',
+        '/compare linear regression versus logistic regression'
+      ],
+      execute: async (parsed, context) => {
+        // Extract two topic references from the command
+        const input = parsed.originalText;
+        const topicRegex = /@(\S+)/g;
+        const topicMatches = input.match(topicRegex);
+        
+        if (!topicMatches || topicMatches.length < 2) {
+          return {
+            success: false,
+            message: '❌ **Compare requires two topic references** - Use format: `/compare @topic1 and @topic2`',
+            type: 'error'
+          };
+        }
+
+        const topic1Name = topicMatches[0]?.replace('@', '').trim();
+        const topic2Name = topicMatches[1]?.replace('@', '').trim();
+
+        if (!topic1Name || !topic2Name) {
+          return {
+            success: false,
+            message: '❌ **Invalid topic references** - Please use valid topic names',
+            type: 'error'
+          };
+        }
+
+        // Find both topics in available topics
+        const topic1 = context?.availableTopics ? this.findTopicByName(topic1Name, context.availableTopics) : undefined;
+        const topic2 = context?.availableTopics ? this.findTopicByName(topic2Name, context.availableTopics) : undefined;
+
+        if (!topic1) {
+          return {
+            success: false,
+            message: `❌ **Topic "${topic1Name}" not found** - Please check available topics`,
+            type: 'error'
+          };
+        }
+
+        if (!topic2) {
+          return {
+            success: false,
+            message: `❌ **Topic "${topic2Name}" not found** - Please check available topics`,
+            type: 'error'
+          };
+        }
+
+        try {
+          console.log(`🔍 Comparing topics:`, topic1, topic2);
+          
+          // Call the compare API
+          const response = await fetch('/api/trpc/content.compareTopics', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              json: {
+                topic1: topic1,
+                topic2: topic2
+              }
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`API call failed: ${response.status}`);
+          }
+
+          const result = await response.json() as {
+            result?: {
+              data?: {
+                json?: {
+                  success?: boolean;
+                  data?: {
+                    topic1?: { name: string; summary: string; key_concepts: string[]; strengths: string[]; limitations: string[] };
+                    topic2?: { name: string; summary: string; key_concepts: string[]; strengths: string[]; limitations: string[] };
+                    comparison?: {
+                      similarities: string[];
+                      differences: string[];
+                      complementary_aspects: string[];
+                      use_cases: {
+                        when_to_use_topic1: string[];
+                        when_to_use_topic2: string[];
+                      };
+                    };
+                    overall_analysis?: {
+                      relationship: string;
+                      recommendation: string;
+                      learning_sequence: string;
+                    };
+                  };
+                };
+              };
+            };
+          };
+          
+          // Handle the TRPC response structure correctly
+          const apiResponse = result.result?.data?.json;
+          
+          if (apiResponse?.success && apiResponse.data) {
+            const comparisonData = apiResponse.data;
+            
+            // Format the comparison result nicely
+            let message = `🔍 **Topic Comparison: ${comparisonData.topic1?.name} vs ${comparisonData.topic2?.name}**\n\n`;
+            
+            // Add similarities
+            if (comparisonData.comparison?.similarities?.length) {
+              message += `**🤝 Similarities:**\n`;
+              comparisonData.comparison.similarities.forEach(sim => message += `• ${sim}\n`);
+              message += '\n';
+            }
+            
+            // Add differences
+            if (comparisonData.comparison?.differences?.length) {
+              message += `**🆚 Key Differences:**\n`;
+              comparisonData.comparison.differences.forEach(diff => message += `• ${diff}\n`);
+              message += '\n';
+            }
+            
+            // Add relationship and recommendation
+            if (comparisonData.overall_analysis) {
+              message += `**🔗 Relationship:** ${comparisonData.overall_analysis.relationship}\n\n`;
+              message += `**💡 Recommendation:** ${comparisonData.overall_analysis.recommendation}\n\n`;
+              message += `**📚 Learning Sequence:** ${comparisonData.overall_analysis.learning_sequence}\n`;
+            }
+            
+            return {
+              success: true,
+              message,
+              data: {
+                command: 'compare',
+                topic1: topic1,
+                topic2: topic2,
+                comparison: comparisonData
+              },
+              type: 'success'
+            };
+          } else {
+            console.error('API response structure:', result);
+            throw new Error('API returned unsuccessful result or missing comparison data');
+          }
+        } catch (error) {
+          console.error('Error calling compare API:', error);
+          return {
+            success: false,
+            message: `❌ **Failed to generate comparison**: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            type: 'error'
+          };
+        }
       }
     });
   }

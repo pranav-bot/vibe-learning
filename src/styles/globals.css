@@ -123,3 +123,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Mermaid diagram styles */
+.mermaid-container svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.mermaid-container .mermaid {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+/* Ensure mermaid diagrams are properly styled */
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
