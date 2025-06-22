@@ -456,9 +456,9 @@ export function LearningClient({ contentId }: LearningClientProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-card/50 backdrop-blur-sm h-20">
+        <div className="container mx-auto px-6 py-4 h-full">
+          <div className="flex items-center justify-between h-full">
             <div className="flex items-center space-x-4">
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm" className="text-foreground hover:bg-accent">
@@ -471,42 +471,36 @@ export function LearningClient({ contentId }: LearningClientProps) {
                 {contentData?.title ?? 'Learning Session'}
               </h1>
             </div>
-            <div className="flex items-center space-x-6">
-              {/* Difficulty Slider */}
-              <div className="flex items-center space-x-4 bg-muted/50 rounded-lg px-4 py-3 border border-border/50">
-                <GraduationCap className="h-5 w-5 text-muted-foreground" />
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center justify-between min-w-[280px]">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Difficulty Level
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg" role="img" aria-label="difficulty emoji">
-                        {DIFFICULTY_LEVELS[difficulty].emoji}
-                      </span>
-                      <span className="text-sm font-semibold text-foreground">
-                        {DIFFICULTY_LEVELS[difficulty].label}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs text-muted-foreground w-16 text-center">🟢 HS</span>
-                    <Slider
-                      value={[getCurrentDifficultyIndex()]}
-                      onValueChange={handleDifficultyChange}
-                      max={3}
-                      min={0}
-                      step={1}
-                      className="flex-1 min-w-[160px]"
-                    />
-                    <span className="text-xs text-muted-foreground w-16 text-center">🔴 PhD+</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground text-center">
-                    {DIFFICULTY_LEVELS[difficulty].audience}
-                  </div>
+            
+            {/* Center: Difficulty Slider */}
+            <div className="flex items-center space-x-3 bg-muted/50 rounded-lg px-4 py-2 border border-border/50">
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm" role="img" aria-label="difficulty emoji">
+                    {DIFFICULTY_LEVELS[difficulty].emoji}
+                  </span>
+                  <span className="text-sm font-medium text-foreground">
+                    {DIFFICULTY_LEVELS[difficulty].label}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-muted-foreground">🟢</span>
+                  <Slider
+                    value={[getCurrentDifficultyIndex()]}
+                    onValueChange={handleDifficultyChange}
+                    max={3}
+                    min={0}
+                    step={1}
+                    className="w-32"
+                  />
+                  <span className="text-xs text-muted-foreground">🔴</span>
                 </div>
               </div>
-              <div className="h-8 w-px bg-border"></div>
+            </div>
+            
+            {/* Right: Controls */}
+            <div className="flex items-center space-x-4">
               <ThemeToggle />
               <Button
                 variant="ghost"
@@ -555,7 +549,7 @@ export function LearningClient({ contentId }: LearningClientProps) {
 
         {/* Chat Panel */}
         {isChatOpen && (
-          <div className="fixed right-0 top-20 bottom-0 w-96 border-l border-border bg-card/40 backdrop-blur-sm">
+          <div className="fixed right-0 top-20 bottom-0 w-96 border-l border-border bg-card/40 backdrop-blur-sm z-40">
             <ChatPanel 
               contentId={contentId}
               contentData={{
