@@ -7,7 +7,7 @@ const ProjectSchema = z.object({
   id: z.string().describe("Unique identifier for the project"),
   title: z.string().describe("The title of the project"),
   description: z.string().describe("Detailed description of what the project involves and what will be built"),
-  difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]).describe("Difficulty level of the project"),
+  difficulty: z.enum(["beginner", "intermediate", "advanced"]).describe("Difficulty level of the project"),
   estimatedTime: z.string().describe("Estimated time to complete (e.g., '2-3 hours', '1 week', '2-4 days')"),
   technologies: z.array(z.string()).describe("Technologies, tools, or skills that will be used/learned"),
   relatedTopicIds: z.array(z.string()).describe("Array of topic IDs from the roadmap that this project covers"),
@@ -51,7 +51,7 @@ ${roadmap.topics.map(topic => `
 PROJECT REQUIREMENTS:
 1. Create ${projectCount} diverse projects that cover different topics from the roadmap
 2. Each project should reference specific topic IDs from the roadmap in relatedTopicIds
-3. Projects should vary in difficulty: some BEGINNER, some INTERMEDIATE, some ADVANCED
+3. Projects should vary in difficulty: some beginner, some intermediate, some advanced
 4. Each project should have clear deliverables and realistic time estimates
 5. Use appropriate technologies that match the roadmap's subject area
 6. Make projects practical and portfolio-worthy
@@ -59,7 +59,6 @@ PROJECT REQUIREMENTS:
 IMPORTANT: 
 - Use the exact topic IDs from the roadmap in the relatedTopicIds arrays
 - Ensure projects are specific and actionable with clear deliverables
-- Use UPPERCASE for difficulty levels: BEGINNER, INTERMEDIATE, or ADVANCED
 - Tailor difficulty and technologies to the roadmap's overall level and topics`,
     });
 
