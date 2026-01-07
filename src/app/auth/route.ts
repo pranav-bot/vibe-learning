@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     
     if (!error) {
       // Redirect to dashboard after successful OAuth
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/library', request.url))
     }
     
     // If there was an error, redirect to error page

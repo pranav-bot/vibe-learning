@@ -50,8 +50,8 @@ export default function LibraryClient() {
               <Link href="/library" className="text-foreground font-medium">
                 Library
               </Link>
-              <Link href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-                Dashboard
+              <Link href="/library" className="text-muted-foreground hover:text-foreground transition-colors">
+                Library
               </Link>
             </div>
           </div>

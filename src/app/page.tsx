@@ -13,7 +13,7 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  console.log(process.env.NEXT_PUBLIC_BACKEND_URL);
+  // console.log(process.env.NEXT_PUBLIC_BACKEND_URL);
 
   return (
     <HydrateClient>
@@ -39,9 +39,6 @@ export default async function Home() {
                 <Button variant="ghost" asChild>
                   <Link href="/library">Roadmap Learning</Link>
                 </Button>
-                <Button variant="ghost" asChild>
-                  <Link href="/dashboard">Single Document</Link>
-                </Button>
                 <ThemeToggle />
                 <LoginButton />
               </div>
@@ -57,12 +54,12 @@ export default async function Home() {
               <span className="text-muted-foreground"> Thought</span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed">
-              Choose your learning approach: Build comprehensive roadmaps or analyze single documents with AI
+              Build comprehensive roadmaps with AI-generated content and structured progression
             </p>
             
             {/* Learning Options */}
-            <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto mb-12">
-              <Card className="p-8 hover:shadow-lg transition-all border-2 hover:border-primary cursor-pointer group">
+            <div className="flex justify-center max-w-lg mx-auto mb-12">
+              <Card className="p-8 hover:shadow-lg transition-all border-2 hover:border-primary cursor-pointer group w-full">
                 <Link href="/library" className="block">
                   <div className="text-center space-y-4">
                     <div className="h-16 w-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -73,22 +70,6 @@ export default async function Home() {
                     <h3 className="text-2xl font-bold text-foreground">Roadmap Learning</h3>
                     <p className="text-muted-foreground">
                       Create comprehensive learning roadmaps for any topic with AI-generated content and structured progression
-                    </p>
-                  </div>
-                </Link>
-              </Card>
-
-              <Card className="p-8 hover:shadow-lg transition-all border-2 hover:border-primary cursor-pointer group">
-                <Link href="/dashboard" className="block">
-                  <div className="text-center space-y-4">
-                    <div className="h-16 w-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-2xl font-bold text-foreground">Single Document</h3>
-                    <p className="text-muted-foreground">
-                      Upload and analyze individual documents, PDFs, or content with AI-powered insights and explanations
                     </p>
                   </div>
                 </Link>
@@ -122,7 +103,6 @@ export default async function Home() {
                 <h4 className="font-semibold text-foreground mb-4">Product</h4>
                 <ul className="space-y-2 text-muted-foreground">
                   <li><Link href="/library" className="hover:text-foreground transition-colors">Roadmap Learning</Link></li>
-                  <li><Link href="/dashboard" className="hover:text-foreground transition-colors">Single Document</Link></li>
                 </ul>
               </div>
               <div>
