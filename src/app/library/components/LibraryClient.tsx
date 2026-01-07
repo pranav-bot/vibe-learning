@@ -12,21 +12,46 @@ import {
   Send,
   Calendar,
   Layers,
-  ExternalLink
+  ExternalLink,
+  Globe,
+  Lock
 } from "lucide-react";
 import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import ThemeToggle from "~/components/ThemeToggle";
 import LoginButton from "~/components/LoginLogOutButton";
 import DifficultyDialog from "~/components/DifficultyDialog";
 import { api } from "~/trpc/react";
 import { ProfileButton } from "~/components/ProfileButton";
 
+import { toast } from "sonner";
+
 export default function LibraryClient() {
   const [topicName, setTopicName] = useState('');
   const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
+  const utils = api.useUtils();
 
   // Fetch user's previously generated roadmaps
   const userRoadmapsQuery = api.roadmap.getUserRoadmaps.useQuery({});
+  
+  // Visibility toggle mutation
+  const toggleVisibilityMutation = api.roadmap.toggleVisibility.useMutation({
+    onSuccess: async (data) => {
+      toast.success(`Roadmap is now ${data.data.isPublic ? 'Public' : 'Private'}`);
+      await utils.roadmap.getUserRoadmaps.invalidate();
+    },
+    onError: (error) => {
+      console.error("Error toggling visibility:", error);
+      toast.error("Failed to update visibility");
+    }
+  });
+
+  const handleToggleVisibility = (id: string, currentStatus: boolean) => {
+    toggleVisibilityMutation.mutate({
+      id,
+      isPublic: !currentStatus
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,10 +74,7 @@ export default function LibraryClient() {
             </Link>
             <div className="hidden md:flex items-center space-x-6">
               <Link href="/library" className="text-foreground font-medium">
-                Library
-              </Link>
-              <Link href="/library" className="text-muted-foreground hover:text-foreground transition-colors">
-                Library
+                My Roadmaps
               </Link>
             </div>
           </div>
@@ -138,40 +160,73 @@ export default function LibraryClient() {
           {userRoadmapsQuery.data?.data && userRoadmapsQuery.data.data.length > 0 && (
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6">Your Roadmaps</h2>
-              <div className="max-h-96 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
-                  {userRoadmapsQuery.data.data.map((roadmap) => (
-                    <Card key={roadmap.id} className="p-6 hover:shadow-md transition-shadow min-h-[200px]">
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="font-semibold text-lg mb-2">{roadmap.title}</h3>
-                          <p className="text-sm text-muted-foreground leading-relaxed">{roadmap.description}</p>
+              
+              <Tabs defaultValue="all" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-8">
+                  <TabsTrigger value="all">All Roadmaps</TabsTrigger>
+                  <TabsTrigger value="public">Public</TabsTrigger>
+                  <TabsTrigger value="private">Private</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="all">
+                  <div className="max-h-96 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+                      {userRoadmapsQuery.data.data.map((roadmap) => (
+                        <RoadmapCard 
+                          key={roadmap.id} 
+                          roadmap={roadmap} 
+                          onToggleVisibility={handleToggleVisibility}
+                          isToggling={toggleVisibilityMutation.isPending && toggleVisibilityMutation.variables?.id === roadmap.id}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="public">
+                  <div className="max-h-96 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+                      {userRoadmapsQuery.data.data
+                        .filter(r => r.isPublic)
+                        .map((roadmap) => (
+                          <RoadmapCard 
+                            key={roadmap.id} 
+                            roadmap={roadmap} 
+                            onToggleVisibility={handleToggleVisibility} 
+                            isToggling={toggleVisibilityMutation.isPending && toggleVisibilityMutation.variables?.id === roadmap.id}
+                          />
+                        ))}
+                      {userRoadmapsQuery.data.data.filter(r => r.isPublic).length === 0 && (
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                          No public roadmaps found.
                         </div>
-                        
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(roadmap.createdAt).toLocaleDateString()}
-                          <span>•</span>
-                          <Layers className="h-3 w-3" />
-                          {roadmap.topicCount} topics
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="private">
+                  <div className="max-h-96 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+                       {userRoadmapsQuery.data.data
+                        .filter(r => !r.isPublic)
+                        .map((roadmap) => (
+                          <RoadmapCard 
+                            key={roadmap.id} 
+                            roadmap={roadmap} 
+                            onToggleVisibility={handleToggleVisibility} 
+                            isToggling={toggleVisibilityMutation.isPending && toggleVisibilityMutation.variables?.id === roadmap.id}
+                          />
+                        ))}
+                      {userRoadmapsQuery.data.data.filter(r => !r.isPublic).length === 0 && (
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                          No private roadmaps found.
                         </div>
-                        
-                        <div className="flex items-center justify-between pt-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {roadmap.difficulty}
-                          </Badge>
-                          <Link href={`/map?roadmapId=${roadmap.id}`}>
-                            <Button size="sm" variant="outline" className="flex items-center gap-1">
-                              <ExternalLink className="h-3 w-3" />
-                              View
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
@@ -210,5 +265,65 @@ export default function LibraryClient() {
         courseTitle={topicName}
       />
     </div>
+  );
+}
+
+function RoadmapCard({ 
+  roadmap, 
+  onToggleVisibility, 
+  isToggling 
+}: { 
+  roadmap: any; 
+  onToggleVisibility: (id: string, currentStatus: boolean) => void;
+  isToggling: boolean;
+}) {
+  return (
+    <Card className="p-6 hover:shadow-md transition-shadow min-h-[200px] flex flex-col justify-between">
+      <div className="space-y-4">
+        <div>
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="font-semibold text-lg line-clamp-1" title={roadmap.title}>{roadmap.title}</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-transparent"
+              onClick={() => onToggleVisibility(roadmap.id, roadmap.isPublic)}
+              disabled={isToggling}
+            >
+              {isToggling ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              ) : roadmap.isPublic ? (
+                <Globe className="h-4 w-4 text-primary" />
+              ) : (
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2" title={roadmap.description}>
+            {roadmap.description}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Calendar className="h-3 w-3" />
+          {new Date(roadmap.createdAt).toLocaleDateString()}
+          <span>•</span>
+          <Layers className="h-3 w-3" />
+          {roadmap.topicCount} topics
+        </div>
+      </div>
+        
+      <div className="flex items-center justify-between pt-4">
+        <Badge variant="secondary" className="text-xs">
+          {roadmap.difficulty}
+        </Badge>
+        <Link href={`/map?roadmapId=${roadmap.id}`}>
+          <Button size="sm" variant="outline" className="flex items-center gap-1">
+            <ExternalLink className="h-3 w-3" />
+            View
+          </Button>
+        </Link>
+      </div>
+    </Card>
   );
 }

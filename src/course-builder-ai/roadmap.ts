@@ -17,9 +17,11 @@ const TopicSchema = z.object({
 
 // Define the schema for the complete roadmap
 const RoadmapSchema = z.object({
+  id: z.string().optional().describe("Unique identifier for the roadmap"),
   title: z.string().describe("The title of the complete learning roadmap"),
   description: z.string().describe("An overview of what the roadmap covers"),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]).describe("The difficulty level of the roadmap"),
+  isPublic: z.boolean().optional().default(false).describe("Whether the roadmap is public"),
   rootTopics: z.array(z.string()).describe("Array of root topic IDs that start the roadmap"),
   topics: z.array(TopicSchema).describe("Array of all topics in the roadmap for easy lookup and mindmap creation")
 });

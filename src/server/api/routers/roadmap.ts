@@ -227,6 +227,7 @@ export const roadmapRouter = createTRPCRouter({
             title: roadmap.title,
             description: roadmap.description,
             difficulty: roadmap.difficulty,
+            isPublic: roadmap.isPublic,
             createdAt: roadmap.createdAt,
             updatedAt: roadmap.updatedAt,
             topicCount: roadmap.topics.length,
@@ -290,9 +291,11 @@ export const roadmapRouter = createTRPCRouter({
           .map(topic => topic.id);
         
         const reconstructedRoadmap = {
+          id: roadmap.id,
           title: roadmap.title,
           description: roadmap.description,
           difficulty: roadmap.difficulty as "beginner" | "intermediate" | "advanced",
+          isPublic: roadmap.isPublic,
           rootTopics: rootTopics,
           topics: reconstructedTopics
         };
@@ -748,6 +751,45 @@ export const roadmapRouter = createTRPCRouter({
       } catch (error) {
         console.error("❌ Error retrieving projects:", error);
         throw new Error(`Failed to retrieve projects: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  toggleVisibility: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      isPublic: z.boolean()
+    }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        if (!ctx.user?.id) {
+          throw new Error("Unauthorized");
+        }
+
+        const roadmap = await db.roadmap.findUnique({
+          where: { id: input.id },
+        });
+
+        if (!roadmap) {
+          throw new Error("Roadmap not found");
+        }
+
+        if (roadmap.profileId !== ctx.user.id) {
+          throw new Error("Unauthorized");
+        }
+
+        const updatedRoadmap = await db.roadmap.update({
+          where: { id: input.id },
+          data: { isPublic: input.isPublic },
+        });
+
+        return {
+          success: true,
+          data: updatedRoadmap
+        };
+
+      } catch (error) {
+        console.error("❌ Error toggling visibility:", error);
+        throw new Error(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`);
       }
     }),
 });

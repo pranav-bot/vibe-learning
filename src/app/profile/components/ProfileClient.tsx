@@ -120,7 +120,7 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
           </div>
           <div className="flex items-center space-x-4">
             <Link href="/library" className="text-sm font-medium hover:text-primary">
-              Library
+              My Roadmaps
             </Link>
             <ThemeToggle />
             <ProfileButton />

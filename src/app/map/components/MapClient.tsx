@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Badge } from "~/components/ui/badge";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { ArrowLeft, Play } from "lucide-react";
+import { ArrowLeft, Play, Globe, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "~/trpc/react";
 import RoadmapLoading from "~/components/RoadmapLoading";
 import CustomMindmap from "~/components/CustomMindmap";
@@ -247,6 +248,21 @@ export default function MapClient() {
     }
   });
 
+  // tRPC mutation for toggling visibility
+  const toggleVisibilityMutation = api.roadmap.toggleVisibility.useMutation({
+    onSuccess: (data) => {
+      console.log("Visibility updated:", data.data);
+      if (roadmap) {
+           setRoadmap({...roadmap, isPublic: data.data.isPublic});
+      }
+      toast.success(`Roadmap is now ${data.data.isPublic ? 'Public' : 'Private'}`);
+    },
+    onError: (error) => {
+      console.error("Error toggling visibility:", error);
+      toast.error("Failed to update visibility");
+    }
+  });
+
   // Handle successful roadmap loading
   useEffect(() => {
     if (loadRoadmapQuery.data?.success) {
@@ -436,7 +452,7 @@ export default function MapClient() {
           <Link href="/library">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Library
+              Back to My Roadmaps
             </Button>
           </Link>
         </div>
@@ -456,7 +472,7 @@ export default function MapClient() {
             <Link href="/library">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Library
+                Back to My Roadmaps
               </Button>
             </Link>
           </div>
@@ -581,9 +597,35 @@ export default function MapClient() {
               <div className="text-center space-y-2">
                 <h1 className="text-xl font-bold">{roadmap.title}</h1>
                 <p className="text-sm text-muted-foreground">{roadmap.description}</p>
-                <Badge variant="outline" className="text-xs">
-                  {roadmap.difficulty}
-                </Badge>
+                <div className="flex items-center justify-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {roadmap.difficulty}
+                  </Badge>
+                  {roadmap.id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => toggleVisibilityMutation.mutate({ 
+                        id: roadmap.id!, 
+                        isPublic: !roadmap.isPublic 
+                      })}
+                      disabled={toggleVisibilityMutation.isPending}
+                    >
+                      {roadmap.isPublic ? (
+                        <>
+                          <Globe className="h-3 w-3 mr-1" />
+                          Public
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="h-3 w-3 mr-1" />
+                          Private
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
             </Card>
           </div>
@@ -593,7 +635,7 @@ export default function MapClient() {
             <Link href="/library">
               <Button variant="ghost" size="sm" className="bg-background/95 backdrop-blur-sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Library
+                Back to My Roadmaps
               </Button>
             </Link>
           </div>
