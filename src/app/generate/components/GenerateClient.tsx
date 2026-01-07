@@ -13,14 +13,9 @@ import {
 } from "~/components/ui/select";
 import { 
   BookOpen,
-  ArrowLeft,
   Send,
 } from "lucide-react";
-import Link from "next/link";
-import ThemeToggle from "~/components/ThemeToggle";
-import LoginButton from "~/components/LoginLogOutButton";
 import DifficultyDialog from "~/components/DifficultyDialog";
-import { ProfileButton } from "~/components/ProfileButton";
 
 export default function GenerateClient() {
   const [topicName, setTopicName] = useState('');
@@ -37,35 +32,6 @@ export default function GenerateClient() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-6">
-            <Link href="/" className="flex items-center space-x-2">
-              <ArrowLeft className="h-5 w-5" />
-              <div className="h-8 w-8 rounded-lg bg-foreground"></div>
-              <span className="text-xl font-bold">Vibe Learning</span>
-            </Link>
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/generate" className="text-foreground font-medium">
-                Create
-              </Link>
-              <Link href="/library" className="text-muted-foreground font-medium hover:text-foreground">
-                My Roadmaps
-              </Link>
-              <Link href="/trending" className="text-muted-foreground font-medium hover:text-foreground">
-                Trending
-              </Link>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <ThemeToggle />
-            <ProfileButton />
-            <LoginButton />
-          </div>
-        </div>
-      </nav>
-
       {/* Main Content */}
       <main className="container mx-auto px-6 py-16">
         <div className="max-w-2xl mx-auto text-center">

@@ -7,7 +7,6 @@ import { Badge } from "~/components/ui/badge";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { 
-  ArrowLeft,
   Calendar,
   Layers,
   ExternalLink,
@@ -16,10 +15,7 @@ import {
   User as UserIcon
 } from "lucide-react";
 import Link from "next/link";
-import ThemeToggle from "~/components/ThemeToggle";
-import LoginButton from "~/components/LoginLogOutButton";
 import { api } from "~/trpc/react";
-import { ProfileButton } from "~/components/ProfileButton";
 import type { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { cn } from "~/lib/utils";
@@ -52,33 +48,6 @@ export default function TrendingClient({ user }: TrendingClientProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-6">
-            <Link href="/" className="flex items-center space-x-2">
-              <ArrowLeft className="h-5 w-5" />
-              <div className="h-8 w-8 rounded-lg bg-foreground"></div>
-              <span className="text-xl font-bold">Vibe Learning</span>
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link href="/generate" className="text-sm font-medium hover:text-primary">
-              Create
-            </Link>
-            <Link href="/library" className="text-sm font-medium hover:text-primary">
-              My Roadmaps
-            </Link>
-             <Link href="/trending" className="text-sm font-medium hover:text-primary text-primary">
-              Trending
-            </Link>
-            <ThemeToggle />
-            {user && <ProfileButton />}
-            <LoginButton />
-          </div>
-        </div>
-      </nav>
-
       {/* Main Content */}
       <main className="container mx-auto px-6 py-12">
         <div className="mb-12 text-center">
