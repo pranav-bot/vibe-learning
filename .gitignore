@@ -52,3 +52,5 @@ src/python-backend/uploads
 src/python-backend/data
 
 db-backup/
+
+prisma/migrations/

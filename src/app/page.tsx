@@ -37,6 +37,9 @@ export default async function Home() {
             ) : (
               <div className="flex items-center space-x-4">
                 <Button variant="ghost" asChild>
+                  <Link href="/trending">Trending</Link>
+                </Button>
+                <Button variant="ghost" asChild>
                   <Link href="/library">My Roadmaps</Link>
                 </Button>
                 <ThemeToggle />

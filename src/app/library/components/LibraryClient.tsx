@@ -6,6 +6,8 @@ import { Card } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
 import { Skeleton } from "~/components/ui/skeleton";
+import { Switch } from "~/components/ui/switch";
+import { Label } from "~/components/ui/label";
 import { 
   BookOpen,
   ArrowLeft,
@@ -283,21 +285,6 @@ function RoadmapCard({
         <div>
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-semibold text-lg line-clamp-1" title={roadmap.title}>{roadmap.title}</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 hover:bg-transparent"
-              onClick={() => onToggleVisibility(roadmap.id, roadmap.isPublic)}
-              disabled={isToggling}
-            >
-              {isToggling ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              ) : roadmap.isPublic ? (
-                <Globe className="h-4 w-4 text-primary" />
-              ) : (
-                <Lock className="h-4 w-4 text-muted-foreground" />
-              )}
-            </Button>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2" title={roadmap.description}>
             {roadmap.description}
@@ -313,14 +300,40 @@ function RoadmapCard({
         </div>
       </div>
         
-      <div className="flex items-center justify-between pt-4">
-        <Badge variant="secondary" className="text-xs">
-          {roadmap.difficulty}
-        </Badge>
-        <Link href={`/map?roadmapId=${roadmap.id}`}>
-          <Button size="sm" variant="outline" className="flex items-center gap-1">
+      <div className="flex flex-col gap-3 pt-4">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <Switch
+                    checked={roadmap.isPublic}
+                    onCheckedChange={() => onToggleVisibility(roadmap.id, roadmap.isPublic)}
+                    disabled={isToggling}
+                    id={`visibility-${roadmap.id}`}
+                />
+                <Label htmlFor={`visibility-${roadmap.id}`} className="text-xs font-medium cursor-pointer flex items-center gap-1.5">
+                    {isToggling ? (
+                        <span className="text-muted-foreground">Updating...</span>
+                    ) : roadmap.isPublic ? (
+                        <>
+                            <Globe className="h-3 w-3 text-primary" />
+                            <span className="text-primary">Public</span>
+                        </>
+                    ) : (
+                        <>
+                            <Lock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">Private</span>
+                        </>
+                    )}
+                </Label>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+                {roadmap.difficulty}
+            </Badge>
+        </div>
+
+        <Link href={`/map?roadmapId=${roadmap.id}`} className="w-full">
+          <Button size="sm" variant="outline" className="w-full flex items-center justify-center gap-1">
             <ExternalLink className="h-3 w-3" />
-            View
+            View Roadmap
           </Button>
         </Link>
       </div>

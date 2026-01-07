@@ -792,4 +792,120 @@ export const roadmapRouter = createTRPCRouter({
         throw new Error(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`);
       }
     }),
+
+  toggleUpvote: publicProcedure
+    .input(z.object({
+      roadmapId: z.string()
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        if (!ctx.user?.id) {
+          throw new Error("Unauthorized");
+        }
+
+        const userId = ctx.user.id;
+        const roadmapId = input.roadmapId;
+
+        // Check if user already upvoted
+        const existingUpvote = await db.upvote.findUnique({
+          where: {
+            profileId_roadmapId: {
+              profileId: userId,
+              roadmapId: roadmapId
+            }
+          }
+        });
+
+        if (existingUpvote) {
+          // Remove upvote
+          await db.upvote.delete({
+            where: {
+              id: existingUpvote.id
+            }
+          });
+          return { success: true, upvoted: false };
+        } else {
+          // Add upvote
+          await db.upvote.create({
+            data: {
+              profileId: userId,
+              roadmapId: roadmapId
+            }
+          });
+          return { success: true, upvoted: true };
+        }
+
+      } catch (error) {
+        console.error("❌ Error toggling upvote:", error);
+        throw new Error(`Failed to toggle upvote: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  getTrending: publicProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(50).default(20)
+    }))
+    .query(async ({ ctx, input }) => {
+      try {
+        console.log(`📈 Retrieving trending roadmaps`);
+        
+        const roadmaps = await db.roadmap.findMany({
+          where: {
+            isPublic: true
+          },
+          include: {
+            topics: {
+              select: { id: true }
+            },
+            profile: {
+                select: {
+                    full_name: true,
+                    avatar_url: true,
+                }
+            },
+            _count: {
+              select: {
+                upvotes: true
+              }
+            },
+            upvotes: ctx.user?.id ? {
+                where: {
+                    profileId: ctx.user.id
+                },
+                select: {
+                    id: true
+                }
+            } : false
+          },
+          orderBy: {
+            upvotes: {
+              _count: 'desc'
+            }
+          },
+          take: input.limit
+        });
+        
+        console.log(`✅ Found ${roadmaps.length} trending roadmaps`);
+        
+        return {
+          success: true,
+          data: roadmaps.map(roadmap => ({
+            id: roadmap.id,
+            title: roadmap.title,
+            description: roadmap.description,
+            difficulty: roadmap.difficulty,
+            createdAt: roadmap.createdAt,
+            updatedAt: roadmap.updatedAt,
+            topicCount: roadmap.topics.length,
+            creator: roadmap.profile,
+            upvoteCount: roadmap._count.upvotes,
+            isUpvoted: roadmap.upvotes ? roadmap.upvotes.length > 0 : false
+          }))
+        };
+        
+      } catch (error) {
+        console.error("❌ Error retrieving trending roadmaps:", error);
+        throw new Error(`Failed to retrieve trending roadmaps: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
 });
