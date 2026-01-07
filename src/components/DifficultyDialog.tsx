@@ -20,6 +20,7 @@ interface DifficultyDialogProps {
   isOpen: boolean;
   onClose: () => void;
   courseTitle: string;
+  initialDifficulty?: "beginner" | "intermediate" | "advanced";
 }
 
 const DIFFICULTY_LEVELS = [
@@ -28,8 +29,22 @@ const DIFFICULTY_LEVELS = [
   { value: 2, label: "advanced", display: "Advanced", description: "Experienced learner" }
 ] as const;
 
-export default function DifficultyDialog({ isOpen, onClose, courseTitle }: DifficultyDialogProps) {
+export default function DifficultyDialog({ isOpen, onClose, courseTitle, initialDifficulty }: DifficultyDialogProps) {
   const [difficultyValue, setDifficultyValue] = useState([0]);
+
+  // Update difficulty when dialog opens or initialDifficulty changes
+  useEffect(() => {
+    if (isOpen && initialDifficulty) {
+      const levelIndex = DIFFICULTY_LEVELS.findIndex(level => level.label === initialDifficulty);
+      if (levelIndex !== -1) {
+        setDifficultyValue([levelIndex]);
+      }
+    } else if (isOpen && !initialDifficulty) {
+      // Reset to beginner if not specified
+      setDifficultyValue([0]);
+    }
+  }, [isOpen, initialDifficulty]);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const router = useRouter();
 

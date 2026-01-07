@@ -11,7 +11,6 @@ import { Label } from "~/components/ui/label";
 import { 
   BookOpen,
   ArrowLeft,
-  Send,
   Calendar,
   Layers,
   ExternalLink,
@@ -22,15 +21,13 @@ import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import ThemeToggle from "~/components/ThemeToggle";
 import LoginButton from "~/components/LoginLogOutButton";
-import DifficultyDialog from "~/components/DifficultyDialog";
 import { api } from "~/trpc/react";
 import { ProfileButton } from "~/components/ProfileButton";
 
 import { toast } from "sonner";
 
+
 export default function LibraryClient() {
-  const [topicName, setTopicName] = useState('');
-  const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
   const utils = api.useUtils();
 
   // Fetch user's previously generated roadmaps
@@ -55,14 +52,6 @@ export default function LibraryClient() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!topicName.trim()) return;
-    
-    // Show difficulty dialog instead of handling submission here
-    setShowDifficultyDialog(true);
-  };
-
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -75,8 +64,14 @@ export default function LibraryClient() {
               <span className="text-xl font-bold">Vibe Learning</span>
             </Link>
             <div className="hidden md:flex items-center space-x-6">
+              <Link href="/generate" className="text-muted-foreground font-medium hover:text-foreground">
+                Create
+              </Link>
               <Link href="/library" className="text-foreground font-medium">
                 My Roadmaps
+              </Link>
+              <Link href="/trending" className="text-muted-foreground font-medium hover:text-foreground">
+                  Trending
               </Link>
             </div>
           </div>
@@ -89,80 +84,23 @@ export default function LibraryClient() {
       </nav>
 
       {/* Main Content */}
-      <main className="container mx-auto px-6 py-16">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="mb-8">
-            <BookOpen className="h-16 w-16 mx-auto text-primary mb-4" />
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              What Would You Like to Learn?
-            </h1>
-            <p className="text-xl text-muted-foreground mb-8">
-              Enter any topic and we&apos;ll create a personalized learning experience for you
-            </p>
+      <main className="container mx-auto px-6 py-12">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+             <div className="flex items-center gap-3">
+                <BookOpen className="h-8 w-8 text-primary" />
+                <h1 className="text-3xl font-bold">My Roadmaps</h1>
+             </div>
+             <Button asChild>
+                <Link href="/generate">
+                    Create New
+                </Link>
+             </Button>
           </div>
 
-          <Card className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label htmlFor="topic" className="text-sm font-medium text-left block">
-                  Topic Name
-                </label>
-                <Input
-                  id="topic"
-                  type="text"
-                  placeholder="e.g., Machine Learning, React Development, Photography..."
-                  value={topicName}
-                  onChange={(e) => setTopicName(e.target.value)}
-                  className="text-lg py-3"
-                />
-              </div>
-              
-              <Button 
-                type="submit" 
-                size="lg" 
-                className="w-full flex items-center gap-2"
-                disabled={!topicName.trim()}
-              >
-                <Send className="h-5 w-5" />
-                Start Learning
-              </Button>
-
-              {/* Popular topics moved inside the card */}
-              <div className="pt-4 border-t">
-                <p className="text-sm text-muted-foreground mb-4 text-center">
-                  Popular topics to get you started:
-                </p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {[
-                    'Machine Learning',
-                    'Web Development',
-                    'Data Science',
-                    'Digital Marketing',
-                    'Photography',
-                    'Python Programming',
-                    'UI/UX Design',
-                    'Blockchain'
-                  ].map((topic) => (
-                    <Button
-                      key={topic}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTopicName(topic)}
-                      className="text-xs"
-                    >
-                      {topic}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </form>
-          </Card>
-
           {/* Previously Generated Roadmaps */}
-          {userRoadmapsQuery.data?.data && userRoadmapsQuery.data.data.length > 0 && (
-            <div className="mt-12">
-              <h2 className="text-2xl font-bold mb-6">Your Roadmaps</h2>
-              
+          {userRoadmapsQuery.data?.data && userRoadmapsQuery.data.data.length > 0 ? (
+            <div>
               <Tabs defaultValue="all" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 mb-8">
                   <TabsTrigger value="all">All Roadmaps</TabsTrigger>
@@ -171,8 +109,7 @@ export default function LibraryClient() {
                 </TabsList>
                 
                 <TabsContent value="all">
-                  <div className="max-h-96 overflow-y-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {userRoadmapsQuery.data.data.map((roadmap) => (
                         <RoadmapCard 
                           key={roadmap.id} 
@@ -181,13 +118,11 @@ export default function LibraryClient() {
                           isToggling={toggleVisibilityMutation.isPending && toggleVisibilityMutation.variables?.id === roadmap.id}
                         />
                       ))}
-                    </div>
                   </div>
                 </TabsContent>
                 
                 <TabsContent value="public">
-                  <div className="max-h-96 overflow-y-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {userRoadmapsQuery.data.data
                         .filter(r => r.isPublic)
                         .map((roadmap) => (
@@ -198,18 +133,16 @@ export default function LibraryClient() {
                             isToggling={toggleVisibilityMutation.isPending && toggleVisibilityMutation.variables?.id === roadmap.id}
                           />
                         ))}
+                    </div>
                       {userRoadmapsQuery.data.data.filter(r => r.isPublic).length === 0 && (
-                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                        <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
                           No public roadmaps found.
                         </div>
                       )}
-                    </div>
-                  </div>
                 </TabsContent>
                 
                 <TabsContent value="private">
-                  <div className="max-h-96 overflow-y-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                        {userRoadmapsQuery.data.data
                         .filter(r => !r.isPublic)
                         .map((roadmap) => (
@@ -220,24 +153,30 @@ export default function LibraryClient() {
                             isToggling={toggleVisibilityMutation.isPending && toggleVisibilityMutation.variables?.id === roadmap.id}
                           />
                         ))}
+                    </div>
                       {userRoadmapsQuery.data.data.filter(r => !r.isPublic).length === 0 && (
-                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                        <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
                           No private roadmaps found.
                         </div>
                       )}
-                    </div>
-                  </div>
                 </TabsContent>
               </Tabs>
             </div>
+          ) : !userRoadmapsQuery.isLoading && (
+              <div className="text-center py-20 bg-muted/30 rounded-xl border-dashed border-2">
+                  <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No roadmaps yet</h3>
+                  <p className="text-muted-foreground mb-6">Start your learning journey by creating your first roadmap.</p>
+                  <Button asChild size="lg">
+                    <Link href="/generate">Create Roadmap</Link>
+                  </Button>
+              </div>
           )}
 
           {/* Loading state for roadmaps */}
           {userRoadmapsQuery.isLoading && (
-            <div className="mt-12">
-              <h2 className="text-2xl font-bold mb-6">Your Roadmaps</h2>
-              <div className="max-h-96 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
+            <div className="mt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
                     <Card key={i} className="p-6 min-h-[200px]">
                       <Skeleton className="h-5 w-3/4 mb-3" />
@@ -251,24 +190,16 @@ export default function LibraryClient() {
                     </Card>
                   ))}
                 </div>
-              </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* Difficulty Dialog */}
-      <DifficultyDialog
-        isOpen={showDifficultyDialog}
-        onClose={() => {
-          setShowDifficultyDialog(false);
-          setTopicName(''); // Reset topic name when dialog is closed
-        }}
-        courseTitle={topicName}
-      />
+      {/* Difficulty Dialog removed */}
     </div>
   );
 }
+
 
 function RoadmapCard({ 
   roadmap, 

@@ -63,6 +63,9 @@ export default function TrendingClient({ user }: TrendingClientProps) {
             </Link>
           </div>
           <div className="flex items-center space-x-4">
+            <Link href="/generate" className="text-sm font-medium hover:text-primary">
+              Create
+            </Link>
             <Link href="/library" className="text-sm font-medium hover:text-primary">
               My Roadmaps
             </Link>

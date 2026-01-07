@@ -37,6 +37,9 @@ export default async function Home() {
             ) : (
               <div className="flex items-center space-x-4">
                 <Button variant="ghost" asChild>
+                  <Link href="/generate">Create</Link>
+                </Button>
+                <Button variant="ghost" asChild>
                   <Link href="/trending">Trending</Link>
                 </Button>
                 <Button variant="ghost" asChild>
@@ -64,7 +67,7 @@ export default async function Home() {
             {/* Learning Options */}
             <div className="flex justify-center max-w-lg mx-auto mb-12">
               <Card className="p-8 hover:shadow-lg transition-all border-2 hover:border-primary cursor-pointer group w-full">
-                <Link href="/library" className="block">
+                <Link href="/generate" className="block">
                   <div className="text-center space-y-4">
                     <div className="h-16 w-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                       <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
