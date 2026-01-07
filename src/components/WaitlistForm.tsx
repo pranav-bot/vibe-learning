@@ -125,22 +125,10 @@ export default function WaitlistForm() {
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      <div className="grid text-center">
         <div className="space-y-2">
           <div className="text-3xl font-bold text-primary">1,247</div>
           <div className="text-sm text-muted-foreground">Learners Waiting</div>
-        </div>
-        <div className="space-y-2">
-          <div className="text-3xl font-bold text-primary">98%</div>
-          <div className="text-sm text-muted-foreground">Satisfaction Rate</div>
-        </div>
-        <div className="space-y-2">
-          <div className="text-3xl font-bold text-primary">5x</div>
-          <div className="text-sm text-muted-foreground">Faster Learning</div>
-        </div>
-        <div className="space-y-2">
-          <div className="text-3xl font-bold text-primary">24/7</div>
-          <div className="text-sm text-muted-foreground">AI Support</div>
         </div>
       </div>
     </div>
