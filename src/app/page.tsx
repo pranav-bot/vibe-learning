@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import SplitPanelWrapper from "~/components/SplitPanelWrapper";
 import { HydrateClient } from "~/trpc/server";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -19,6 +20,13 @@ export default async function Home() {
   return (
     <HydrateClient>
       <div className="min-h-screen bg-background">
+        {/* Split Panel Transition Wrapper */}
+        <SplitPanelWrapper />
+
+        {/* Scroll trigger area to enable scroll-based animation */}
+        <div className="h-[30vh]"></div>
+
+        <div className="relative z-10 bg-background">
         {/* Navigation */}
         <nav className="container mx-auto flex items-center justify-between px-6 py-8">
           <div className="flex items-center space-x-2">
@@ -132,6 +140,7 @@ export default async function Home() {
             </div>
           </div>
         </footer>
+        </div>
       </div>
     </HydrateClient>
   );
