@@ -10,7 +10,6 @@ import { Switch } from "~/components/ui/switch";
 import { Label } from "~/components/ui/label";
 import { 
   BookOpen,
-  ArrowLeft,
   Calendar,
   Layers,
   ExternalLink,
@@ -19,10 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import ThemeToggle from "~/components/ThemeToggle";
-import LoginButton from "~/components/LoginLogOutButton";
 import { api } from "~/trpc/react";
-import { ProfileButton } from "~/components/ProfileButton";
 
 import { toast } from "sonner";
 
@@ -54,35 +50,6 @@ export default function LibraryClient() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-6">
-            <Link href="/" className="flex items-center space-x-2">
-              <ArrowLeft className="h-5 w-5" />
-              <div className="h-8 w-8 rounded-lg bg-foreground"></div>
-              <span className="text-xl font-bold">Vibe Learning</span>
-            </Link>
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/generate" className="text-muted-foreground font-medium hover:text-foreground">
-                Create
-              </Link>
-              <Link href="/library" className="text-foreground font-medium">
-                My Roadmaps
-              </Link>
-              <Link href="/trending" className="text-muted-foreground font-medium hover:text-foreground">
-                  Trending
-              </Link>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <ThemeToggle />
-            <ProfileButton />
-            <LoginButton />
-          </div>
-        </div>
-      </nav>
-
       {/* Main Content */}
       <main className="container mx-auto px-6 py-12">
         <div className="max-w-7xl mx-auto">

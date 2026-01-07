@@ -6,7 +6,7 @@ import { db } from '~/server/db'
 
 async function createOrUpdateProfile(userId: string, email: string, fullName?: string, avatarUrl?: string) {
   try {
-    await db.profile.upsert({
+    return await db.profile.upsert({
       where: { id: userId },
       update: {
         email,
@@ -22,6 +22,7 @@ async function createOrUpdateProfile(userId: string, email: string, fullName?: s
     });
   } catch (error) {
     console.error("Error creating/updating profile:", error);
+    return null;
   }
 }
 
@@ -47,12 +48,17 @@ export async function GET(request: NextRequest) {
     
     if (!error && data.user) {
       // Create or update profile after successful OAuth login
-      await createOrUpdateProfile(
+      const profile = await createOrUpdateProfile(
         data.user.id,
         data.user.email!,
         data.user.user_metadata?.full_name as string | undefined,
         data.user.user_metadata?.avatar_url as string | undefined
       );
+
+      // If user already has a username, redirect to library instead of welcome
+      if (profile?.username) {
+        redirectTo.pathname = '/library';
+      }
       
       return NextResponse.redirect(redirectTo)
     }
@@ -67,12 +73,17 @@ export async function GET(request: NextRequest) {
     
     if (!error && data.user) {
       // Create or update profile after successful email verification
-      await createOrUpdateProfile(
+      const profile = await createOrUpdateProfile(
         data.user.id,
         data.user.email!,
         data.user.user_metadata?.full_name as string | undefined,
         data.user.user_metadata?.avatar_url as string | undefined
       );
+
+      // If user already has a username, redirect to library instead of welcome
+      if (profile?.username) {
+        redirectTo.pathname = '/library';
+      }
       
       return NextResponse.redirect(redirectTo)
     }

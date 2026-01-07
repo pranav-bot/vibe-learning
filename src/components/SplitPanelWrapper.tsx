@@ -10,14 +10,7 @@ gsap.registerPlugin(ScrollTrigger);
 export default function SplitPanelWrapper() {
   useEffect(() => {
     // Create timeline for the split panel animation
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: document.body,
-        start: "top top",
-        end: "100vh top",
-        scrub: 1
-      }
-    });
+    const tl = gsap.timeline();
 
     // Animate both panels sliding away simultaneously
     tl.to(".left-panel", {
@@ -41,16 +34,39 @@ export default function SplitPanelWrapper() {
         ease: "power2.out",
       },
       "<0.2" // Start slightly after the panels begin moving
+    ).from(
+      "#landing-content", 
+      {
+        y: 50,
+        opacity: 1,
+        duration: 0.8,
+        ease: "power2.out",
+      },
+      "<0.1" // Start as panels are opening
     );
 
-    // Hide the wrapper after animation completes
-    gsap.to(".split-header-wrapper", {
-      display: "none",
-      delay: 0.1,
-      scrollTrigger: {
-        trigger: document.body,
-        start: "90vh top",
-        toggleActions: "play none none reverse"
+    // Create ScrollTrigger to drive the timeline
+    ScrollTrigger.create({
+      animation: tl,
+      trigger: document.body,
+      start: "top top",
+      end: "100vh top",
+      scrub: 1,
+      onLeave: () => {
+        // When animation completes, remove the spacer section and reset scroll
+        const spacer = document.getElementById("intro-spacer");
+        if (spacer) {
+          spacer.style.display = "none";
+          
+          // Hide wrapper immediately
+          gsap.set(".split-header-wrapper", { display: "none" });
+          
+          // Kill all scroll triggers to prevent reversal
+          ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+          
+          // Snap to top of content
+          window.scrollTo(0, 0);
+        }
       }
     });
 

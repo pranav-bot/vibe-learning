@@ -4,10 +4,8 @@ import SplitPanelWrapper from "~/components/SplitPanelWrapper";
 import { HydrateClient } from "~/trpc/server";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import LoginButton from "~/components/LoginLogOutButton";
-import ThemeToggle from "~/components/ThemeToggle";
 import { createClient } from "~/utils/supabase/server";
-import { ProfileButton } from "~/components/ProfileButton";
+import { Navbar } from "~/components/Navbar";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -24,42 +22,11 @@ export default async function Home() {
         <SplitPanelWrapper />
 
         {/* Scroll trigger area to enable scroll-based animation */}
-        <div className="h-[30vh]"></div>
+        <div id="intro-spacer" className="h-[100vh]"></div>
 
-        <div className="relative z-10 bg-background">
+        <div id="landing-content" className="relative z-10 bg-background">
         {/* Navigation */}
-        <nav className="container mx-auto flex items-center justify-between px-6 py-8">
-          <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-lg bg-foreground"></div>
-            <span className="text-2xl font-bold text-foreground">Vibe Learning</span>
-          </div>
-          <div className="hidden md:flex items-center space-x-8">
-            {!user ? (
-              <>
-                <ThemeToggle />
-                <LoginButton />
-                <Button asChild>
-                  <Link href="/signup">Get Started</Link>
-                </Button>
-              </>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" asChild>
-                  <Link href="/generate">Create</Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link href="/trending">Trending</Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link href="/library">My Roadmaps</Link>
-                </Button>
-                <ThemeToggle />
-                <ProfileButton />
-                <LoginButton />
-              </div>
-            )}
-          </div>
-        </nav>
+        <Navbar user={user} />
 
         {/* Hero Section */}
         <section className="container mx-auto px-6 py-20 text-center">

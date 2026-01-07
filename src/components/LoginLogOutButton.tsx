@@ -6,9 +6,9 @@ import { createClient } from "~/utils/supabase/client";
 import { signout } from "~/lib/auth-actions";
 import type { User } from "@supabase/supabase-js";
 
-const LoginButton = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+const LoginButton = ({ user: initialUser }: { user?: User | null }) => {
+  const [user, setUser] = useState<User | null>(initialUser ?? null);
+  const [loading, setLoading] = useState(!initialUser);
   const router = useRouter();
   const supabase = createClient();
   
