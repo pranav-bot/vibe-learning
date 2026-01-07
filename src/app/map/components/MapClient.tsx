@@ -18,6 +18,10 @@ import CustomMindmap from "~/components/CustomMindmap";
 import DraggableWindow from "~/components/DraggableWindow";
 import type { Roadmap, Topic } from "~/course-builder-ai/roadmap";
 
+import LoginButton from "~/components/LoginLogOutButton";
+import ThemeToggle from "~/components/ThemeToggle";
+import { ProfileButton } from "~/components/ProfileButton";
+
 // Type for YouTube resources
 interface YouTubeVideo {
   videoId: string;
@@ -448,7 +452,7 @@ export default function MapClient() {
       {/* Header - Only show when no roadmap */}
       {!roadmap && (
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 min-w-[200px]">
             <Link href="/library">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -457,12 +461,16 @@ export default function MapClient() {
             </Link>
           </div>
           
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-2 flex-1">
             <h1 className="text-3xl font-bold">Learning Roadmap Generator</h1>
             <p className="text-muted-foreground">Generate interactive mindmaps for any learning topic</p>
           </div>
           
-          <div className="w-24" /> {/* Spacer for centering */}
+          <div className="flex items-center justify-end space-x-4 min-w-[200px]">
+            <ThemeToggle />
+            <ProfileButton />
+            <LoginButton />
+          </div>
         </div>
       )}
 

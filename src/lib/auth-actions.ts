@@ -58,6 +58,47 @@ export async function login(formData: FormData) {
   redirect("/library");
 }
 
+export async function updateUsername(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not authenticated");
+  }
+
+  const username = formData.get("username") as string;
+  // simple validation
+  if (!username || username.length < 3) {
+      throw new Error("Username must be at least 3 characters");
+  }
+
+  try {
+    // Check if username exists
+    const existing = await db.profile.findUnique({
+      where: { username },
+    });
+    
+    if (existing && existing.id !== user.id) {
+        throw new Error("Username already taken");
+    }
+
+    await db.profile.update({
+      where: { id: user.id },
+      data: { username },
+    });
+
+  } catch (error) {
+     if (error instanceof Error && error.message === "Username already taken") {
+         throw error;
+     }
+    console.error("Error updating username:", error);
+    throw new Error("Failed to update username");
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/library");
+}
+
 export async function signup(formData: FormData) {
   const supabase = await createClient();
 
@@ -96,7 +137,7 @@ export async function signup(formData: FormData) {
 
   revalidatePath("/library", "layout");
   revalidatePath("/library", "page");
-  redirect("/library");
+  redirect("/welcome");
 }
 
 export async function signout() {
@@ -119,7 +160,7 @@ export async function signInWithGoogle() {
         access_type: "offline",
         prompt: "consent",
       },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm?next=/library`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm?next=/welcome`,
     },
   });
 
@@ -129,4 +170,41 @@ export async function signInWithGoogle() {
   }
 
   redirect(data.url);
+}
+
+export async function updateProfile(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not authenticated");
+  }
+
+  const fullName = formData.get("full_name") as string;
+  const avatarUrl = formData.get("avatar_url") as string;
+
+  try {
+    await db.profile.update({
+      where: { id: user.id },
+      data: {
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      },
+    });
+    
+    // Also update supabase auth metadata
+    await supabase.auth.updateUser({
+      data: {
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      }
+    });
+
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    throw new Error("Failed to update profile");
+  }
+
+  revalidatePath("/profile");
+  revalidatePath("/", "layout"); // Update avatar across the site
 }

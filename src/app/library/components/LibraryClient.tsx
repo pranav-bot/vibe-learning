@@ -19,6 +19,7 @@ import ThemeToggle from "~/components/ThemeToggle";
 import LoginButton from "~/components/LoginLogOutButton";
 import DifficultyDialog from "~/components/DifficultyDialog";
 import { api } from "~/trpc/react";
+import { ProfileButton } from "~/components/ProfileButton";
 
 export default function LibraryClient() {
   const [topicName, setTopicName] = useState('');
@@ -57,6 +58,7 @@ export default function LibraryClient() {
           </div>
           <div className="flex items-center space-x-4">
             <ThemeToggle />
+            <ProfileButton />
             <LoginButton />
           </div>
         </div>

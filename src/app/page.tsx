@@ -6,6 +6,7 @@ import { Card } from "~/components/ui/card";
 import LoginButton from "~/components/LoginLogOutButton";
 import ThemeToggle from "~/components/ThemeToggle";
 import { createClient } from "~/utils/supabase/server";
+import { ProfileButton } from "~/components/ProfileButton";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -40,6 +41,7 @@ export default async function Home() {
                   <Link href="/library">Roadmap Learning</Link>
                 </Button>
                 <ThemeToggle />
+                <ProfileButton />
                 <LoginButton />
               </div>
             )}
