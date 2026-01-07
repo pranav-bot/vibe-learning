@@ -34,12 +34,12 @@ export const roadmapRouter = createTRPCRouter({
         } catch (geminiError) {
           console.warn("⚠️ Gemini 2.0 model failed, trying fallback...", geminiError);
           
-          // Fallback to gemini-1.5-flash
+          // Fallback to gemini-2.5-flash
           try {
             roadmap = await generateRoadmap(
               input.topic,
               input.difficulty,
-              llms.gemini("gemini-1.5-flash")
+              llms.gemini("Gemini 2.5 Flash")
             );
           } catch (fallbackError) {
             console.error("❌ Fallback model also failed:", fallbackError);
@@ -85,7 +85,7 @@ export const roadmapRouter = createTRPCRouter({
         console.log(`🎚️ Difficulty: ${input.difficulty}`);
         
         // Use gemini model for resource selection
-        const model = llms.gemini("gemini-1.5-flash");
+        const model = llms.gemini("gemini-2.5-flash");
         
         const resources = await youtubeResources(
           input.topic,
@@ -535,7 +535,7 @@ export const roadmapRouter = createTRPCRouter({
         };
         
         // Generate projects using AI
-        const model = llms.gemini("gemini-1.5-flash");
+        const model = llms.gemini("gemini-2.5-flash");
         const projectList = await generateProjectsForRoadmap(
           roadmapForGeneration,
           model,

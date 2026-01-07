@@ -3,7 +3,7 @@ import { createClient } from "~/utils/supabase/server";
 import LibraryClient from "./components/LibraryClient";
 
 export default async function LibraryPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const {
     data: { user },

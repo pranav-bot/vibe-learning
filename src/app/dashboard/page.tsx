@@ -7,7 +7,7 @@ import ThemeToggle from "~/components/ThemeToggle";
 import { DashboardClient } from "./components/DashboardClient";
 
 export default async function Dashboard() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const {
     data: { user },

@@ -3,7 +3,7 @@ import { createClient } from "~/utils/supabase/server";
 import MapClient from "./components/MapClient";
 
 export default async function MapPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const {
     data: { user },

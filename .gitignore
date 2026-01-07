@@ -50,3 +50,5 @@ src/python-backend/venv
 src/python-backend/uploads
 
 src/python-backend/data
+
+db-backup/
