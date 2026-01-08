@@ -7,7 +7,7 @@ import { TRPCReactProvider } from "~/trpc/react";
 import { ThemeProvider } from "~/components/theme-provider";
 
 export const metadata: Metadata = {
-  title: "Vibe Learning - AI-Powered Learning Platform",
+  title: "Knowful",
   description: "Transform your learning experience with AI-powered personalized education. Learn at your own pace with intelligent tutoring and adaptive content.",
   icons: [{ rel: "icon", url: "/download.svg" }],
 };

@@ -55,7 +55,7 @@ export const Navbar = ({ user: initialUser }: NavbarProps) => {
       <div className="flex items-center space-x-2">
         <Link href="/" className="flex items-center space-x-2">
           <img src="/download.svg" alt="Vibe Learning Logo" className="h-8 w-8 rounded-lg" />
-          <span className="text-2xl font-bold text-foreground">Vibe Learning</span>
+          <span className="text-2xl font-bold text-foreground">Knowful</span>
         </Link>
       </div>
       <div className="hidden md:flex items-center space-x-8">

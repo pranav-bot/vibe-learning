@@ -89,7 +89,7 @@ export default async function Home() {
               <div>
                 <div className="flex items-center space-x-2 mb-4">
                   <div className="h-8 w-8 rounded-lg bg-foreground"></div>
-                  <span className="text-xl font-bold text-foreground">Vibe Learning</span>
+                  <span className="text-xl font-bold text-foreground">Knowful</span>
                 </div>
                 <p className="text-muted-foreground">
                   Empowering learners worldwide with AI-driven education.
