@@ -37,15 +37,6 @@ export default function SplitPanelWrapper() {
           ease: "power2.out",
         },
         "<0.2" // Start slightly after the panels begin moving
-      ).from(
-        "#landing-content", 
-        {
-          y: 50,
-          opacity: 1,
-          duration: 0.8,
-          ease: "power2.out",
-        },
-        "<0.1" // Start as panels are opening
       );
 
       // Create ScrollTrigger to drive the timeline
