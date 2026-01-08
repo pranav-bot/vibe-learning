@@ -97,25 +97,6 @@ export default function DifficultyDialog({ isOpen, onClose, courseTitle, initial
   // tRPC mutation for saving roadmap
   const saveRoadmapMutation = api.roadmap.save.useMutation();
 
-  // Listen for route changes to close dialog when navigation completes
-  useEffect(() => {
-    if (isGenerating) {
-      const handleRouteChange = () => {
-        // Small delay to ensure the new page has loaded
-        setTimeout(() => {
-          setIsGenerating(false);
-          onClose();
-        }, 500);
-      };
-
-      // Since we can't directly listen to Next.js router events in app router,
-      // we'll use a timeout as fallback
-      const timeout = setTimeout(handleRouteChange, 3000); // Increased timeout for generation
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [isGenerating, onClose]);
-
   const handleGo = () => {
     setIsGenerating(true);
     
@@ -194,21 +175,30 @@ export default function DifficultyDialog({ isOpen, onClose, courseTitle, initial
 
             {/* Level Descriptions */}
             <div className="space-y-2 text-sm">
-              <div className={`p-3 rounded-lg border ${
-                difficultyValue[0] === 0 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
-              }`}>
+              <div 
+                className={`p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted ${
+                  difficultyValue[0] === 0 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+                }`}
+                onClick={() => setDifficultyValue([0])}
+              >
                 <div className="font-medium">Beginner</div>
                 <div className="text-muted-foreground">Start from the basics with foundational concepts</div>
               </div>
-              <div className={`p-3 rounded-lg border ${
-                difficultyValue[0] === 1 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
-              }`}>
+              <div 
+                className={`p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted ${
+                  difficultyValue[0] === 1 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+                }`}
+                onClick={() => setDifficultyValue([1])}
+              >
                 <div className="font-medium">Intermediate</div>
                 <div className="text-muted-foreground">Build on existing knowledge with practical applications</div>
               </div>
-              <div className={`p-3 rounded-lg border ${
-                difficultyValue[0] === 2 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
-              }`}>
+              <div 
+                className={`p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted ${
+                  difficultyValue[0] === 2 ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+                }`}
+                onClick={() => setDifficultyValue([2])}
+              >
                 <div className="font-medium">Advanced</div>
                 <div className="text-muted-foreground">Deep dive into complex topics and advanced techniques</div>
               </div>

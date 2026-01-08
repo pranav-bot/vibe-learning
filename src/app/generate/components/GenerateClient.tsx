@@ -61,7 +61,7 @@ export default function GenerateClient() {
                 />
               </div>
 
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label htmlFor="difficulty" className="text-sm font-medium text-left block">
                   Difficulty
                 </label>
@@ -78,7 +78,7 @@ export default function GenerateClient() {
                     <SelectItem value="advanced">Advanced</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
               
               <Button 
                 type="submit" 
