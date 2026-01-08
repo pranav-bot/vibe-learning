@@ -24,12 +24,12 @@ interface PublicProfileClientProps {
 }
 
 export default function PublicProfileClient({ userId, user }: PublicProfileClientProps) {
-  const profileQuery = api.roadmap.getUserRoadmaps.useQuery({ userId });
+  const profileQuery = api.roadmap.getPublicUserRoadmaps.useQuery({ userId });
   const utils = api.useUtils();
 
   const toggleUpvoteMutation = api.roadmap.toggleUpvote.useMutation({
     onSuccess: async () => {
-       await utils.roadmap.getUserRoadmaps.invalidate({ userId });
+       await utils.roadmap.getPublicUserRoadmaps.invalidate({ userId });
     },
     onError: () => {
         toast.error("Please login to upvote");
@@ -75,8 +75,8 @@ export default function PublicProfileClient({ userId, user }: PublicProfileClien
 
   const { profile, data: roadmaps } = profileQuery.data;
 
-  // Use username if available, fallback to full_name, then 'Anonymous'
-  const displayName = profile.username ?? profile.full_name ?? 'Anonymous';
+  // Use username, fallback to 'Anonymous'
+  const displayName = profile.username ?? 'Anonymous';
 
   return (
     <main className="container mx-auto px-6 py-12">
