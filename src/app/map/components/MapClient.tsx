@@ -682,8 +682,6 @@ export default function MapClient() {
               title="Topic Details"
               initialPosition={{ x: 800, y: 100 }}
               initialSize={{ width: 400, height: 600 }}
-              isMinimized={windows.topicDetails.minimized}
-              onMinimize={() => toggleWindow('topicDetails', 'minimize')}
               onClose={() => toggleWindow('topicDetails', 'close')}
             >
               {selectedTopic ? (
@@ -829,8 +827,6 @@ export default function MapClient() {
               title="Roadmap Overview"
               initialPosition={{ x: 50, y: 100 }}
               initialSize={{ width: 350, height: 400 }}
-              isMinimized={windows.learningPath.minimized}
-              onMinimize={() => toggleWindow('learningPath', 'minimize')}
               onClose={() => toggleWindow('learningPath', 'close')}
             >
               {/* Generate Projects Button */}
@@ -915,8 +911,6 @@ export default function MapClient() {
               title="Learning Projects"
               initialPosition={{ x: 400, y: 100 }}
               initialSize={{ width: 500, height: 600 }}
-              isMinimized={windows.projects.minimized}
-              onMinimize={() => toggleWindow('projects', 'minimize')}
               onClose={() => toggleWindow('projects', 'close')}
             >
               {projects.length > 0 ? (
@@ -1009,7 +1003,7 @@ export default function MapClient() {
             {!windows.topicDetails.visible && (
               <Button
                 size="sm"
-                onClick={() => setWindows(prev => ({ ...prev, topicDetails: { visible: true, minimized: false } }))}
+                onClick={() => setWindows(prev => ({ ...prev, topicDetails: { ...prev.topicDetails, visible: true } }))}
               >
                 Show Topic Details
               </Button>
@@ -1017,7 +1011,7 @@ export default function MapClient() {
             {!windows.learningPath.visible && (
               <Button
                 size="sm"
-                onClick={() => setWindows(prev => ({ ...prev, learningPath: { visible: true, minimized: false } }))}
+                onClick={() => setWindows(prev => ({ ...prev, learningPath: { ...prev.learningPath, visible: true } }))}
               >
                 Show Roadmap
               </Button>
@@ -1025,7 +1019,7 @@ export default function MapClient() {
             {!windows.projects.visible && projects.length > 0 && (
               <Button
                 size="sm"
-                onClick={() => setWindows(prev => ({ ...prev, projects: { visible: true, minimized: false } }))}
+                onClick={() => setWindows(prev => ({ ...prev, projects: { ...prev.projects, visible: true } }))}
               >
                 Show Projects
               </Button>

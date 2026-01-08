@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
@@ -10,7 +9,6 @@ import {
   Calendar,
   Layers,
   ExternalLink,
-  Flame,
   ThumbsUp,
   User as UserIcon
 } from "lucide-react";
@@ -20,20 +18,20 @@ import type { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { cn } from "~/lib/utils";
 
-interface TrendingClientProps {
+interface PublicProfileClientProps {
+  userId: string;
   user: User | null;
 }
 
-export default function TrendingClient({ user }: TrendingClientProps) {
-  const trendingQuery = api.roadmap.getTrending.useQuery({ limit: 20 });
+export default function PublicProfileClient({ userId, user }: PublicProfileClientProps) {
+  const profileQuery = api.roadmap.getUserRoadmaps.useQuery({ userId });
   const utils = api.useUtils();
 
   const toggleUpvoteMutation = api.roadmap.toggleUpvote.useMutation({
-    onSuccess: async (data, variables) => {
-       // Optimistically update the cache or invalidate
-       await utils.roadmap.getTrending.invalidate();
+    onSuccess: async () => {
+       await utils.roadmap.getUserRoadmaps.invalidate({ userId });
     },
-    onError: (error) => {
+    onError: () => {
         toast.error("Please login to upvote");
     }
   });
@@ -46,39 +44,61 @@ export default function TrendingClient({ user }: TrendingClientProps) {
       toggleUpvoteMutation.mutate({ roadmapId: id });
   };
 
+  if (profileQuery.isLoading) {
+      return (
+          <main className="container mx-auto px-6 py-12">
+               <div className="flex flex-col items-center mb-12 space-y-4">
+                  <Skeleton className="h-24 w-24 rounded-full" />
+                  <Skeleton className="h-8 w-48" />
+               </div>
+               <div className="flex flex-col space-y-4 max-w-5xl mx-auto">
+                   {Array.from({ length: 3 }).map((_, i) => (
+                      <Card key={i} className="p-6">
+                         <div className="space-y-3">
+                            <Skeleton className="h-6 w-1/3" />
+                            <Skeleton className="h-4 w-full" />
+                         </div>
+                      </Card>
+                   ))}
+               </div>
+          </main>
+      )
+  }
+
+  if (profileQuery.error) {
+      return (
+          <main className="container mx-auto px-6 py-12 text-center text-red-500">
+              Error fetching profile: {profileQuery.error.message}
+          </main>
+      )
+  }
+
+  const { profile, data: roadmaps } = profileQuery.data;
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Main Content */}
-      <main className="container mx-auto px-6 py-12">
-        <div className="mb-12 text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-                <Flame className="h-8 w-8 text-orange-500" />
-                <h1 className="text-4xl font-bold">Trending Roadmaps</h1>
-            </div>
-          <p className="text-muted-foreground text-lg">
-            Discover popular learning paths created by the community
-          </p>
+    <main className="container mx-auto px-6 py-12">
+        {/* Profile Header */}
+        <div className="flex flex-col items-center mb-12 text-center">
+            <Avatar className="h-24 w-24 mb-4 ring-2 ring-primary ring-offset-2 ring-offset-background">
+                <AvatarImage src={profile.avatar_url ?? undefined} />
+                <AvatarFallback className="text-2xl">
+                    {profile.full_name?.charAt(0) ?? <UserIcon className="h-10 w-10" />}
+                </AvatarFallback>
+            </Avatar>
+            <h1 className="text-3xl font-bold">{profile.full_name ?? 'Anonymous'}</h1>
+            <p className="text-muted-foreground mt-2">
+                {roadmaps.length} Public Roadmap{roadmaps.length !== 1 ? 's' : ''}
+            </p>
         </div>
 
-        {/* Trending Roadmaps List */}
+        {/* Roadmaps List */}
         <div className="flex flex-col space-y-4 max-w-5xl mx-auto">
-          {trendingQuery.isLoading ? (
-            // Loading Skeletons
-            Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="p-6">
-                <div className="flex flex-col md:flex-row gap-4 justify-between">
-                  <div className="space-y-3 w-full">
-                    <div className="flex justify-between">
-                      <Skeleton className="h-6 w-1/3" />
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </div>
-                </div>
-              </Card>
-            ))
-          ) : trendingQuery.data?.data.map((roadmap) => (
+          {roadmaps.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+                No public roadmaps found for this user.
+            </div>
+          ) : (
+            roadmaps.map((roadmap) => (
             <Card key={roadmap.id} className="p-6 hover:shadow-lg transition-all">
               <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
                 <div className="flex-1 min-w-0 space-y-2">
@@ -96,15 +116,6 @@ export default function TrendingClient({ user }: TrendingClientProps) {
                   </p>
                   
                   <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
-                    <Link href={`/profile/${roadmap.creator?.id}`} className="flex items-center gap-2 hover:text-foreground transition-colors group">
-                        <Avatar className="h-5 w-5 group-hover:ring-1 ring-primary">
-                            <AvatarImage src={roadmap.creator?.avatar_url ?? undefined} />
-                            <AvatarFallback className="text-[10px]">
-                                {roadmap.creator?.full_name?.charAt(0) ?? <UserIcon className="h-3 w-3" />}
-                            </AvatarFallback>
-                        </Avatar>
-                        <span className="group-hover:underline">{roadmap.creator?.full_name ?? 'Anonymous'}</span>
-                    </Link>
                     <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {new Date(roadmap.createdAt).toLocaleDateString()}
@@ -143,15 +154,8 @@ export default function TrendingClient({ user }: TrendingClientProps) {
                 </div>
               </div>
             </Card>
-          ))}
-
-          {!trendingQuery.isLoading && trendingQuery.data?.data.length === 0 && (
-              <div className="text-center py-12">
-                  <p className="text-muted-foreground">No trending roadmaps found yet. Be the first to share one!</p>
-              </div>
-          )}
+          )))}
         </div>
-      </main>
-    </div>
+    </main>
   );
 }

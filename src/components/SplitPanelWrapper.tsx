@@ -93,6 +93,11 @@ export default function SplitPanelWrapper() {
             className="text-xl md:text-2xl font-light"
             delay={1.5}
           />
+          <div className="absolute left-0 right-0 top-full mt-4 animate-bounce">
+            <span className="text-sm text-gray-500 opacity-0 animate-[fadeIn_0.5s_ease-out_2.5s_forwards]">
+            Scroll down to know more
+            </span>
+          </div>
         </div>
       </div>
     </div>

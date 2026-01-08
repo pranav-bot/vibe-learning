@@ -859,6 +859,7 @@ export const roadmapRouter = createTRPCRouter({
             },
             profile: {
                 select: {
+                    id: true,
                     full_name: true,
                     avatar_url: true,
                 }
@@ -906,6 +907,90 @@ export const roadmapRouter = createTRPCRouter({
       } catch (error) {
         console.error("❌ Error retrieving trending roadmaps:", error);
         throw new Error(`Failed to retrieve trending roadmaps: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }),
+
+  getUserRoadmaps: publicProcedure
+    .input(z.object({
+      userId: z.string()
+    }))
+    .query(async ({ ctx, input }) => {
+      try {
+        console.log(`👤 Retrieving roadmaps for user: ${input.userId}`);
+        
+        // First get user details
+        const profile = await db.profile.findUnique({
+          where: { id: input.userId },
+          select: {
+            id: true,
+            full_name: true,
+            avatar_url: true,
+          }
+        });
+
+        if (!profile) {
+            throw new Error("User not found");
+        }
+
+        const roadmaps = await db.roadmap.findMany({
+          where: {
+            userId: input.userId,
+            isPublic: true
+          },
+          include: {
+            topics: {
+              select: { id: true }
+            },
+            profile: {
+                select: {
+                    id: true,
+                    full_name: true,
+                    avatar_url: true,
+                }
+            },
+            _count: {
+              select: {
+                upvotes: true
+              }
+            },
+            upvotes: ctx.user?.id ? {
+                where: {
+                    profileId: ctx.user.id
+                },
+                select: {
+                    id: true
+                }
+            } : false
+          },
+          orderBy: {
+            upvotes: {
+              _count: 'desc'
+            }
+          }
+        });
+        
+        console.log(`✅ Found ${roadmaps.length} roadmaps for user`);
+        
+        return {
+          success: true,
+          profile,
+          data: roadmaps.map(roadmap => ({
+            id: roadmap.id,
+            title: roadmap.title,
+            description: roadmap.description,
+            difficulty: roadmap.difficulty,
+            createdAt: roadmap.createdAt,
+            updatedAt: roadmap.updatedAt,
+            topicCount: roadmap.topics.length,
+            creator: roadmap.profile,
+            upvoteCount: roadmap._count.upvotes,
+            isUpvoted: roadmap.upvotes ? roadmap.upvotes.length > 0 : false
+          }))
+        };
+        
+      } catch (error) {
+        console.error("❌ Error retrieving user roadmaps:", error);
+        throw new Error(`Failed to retrieve user roadmaps: ${error instanceof Error ? error.message : String(error)}`);
       }
     }),
 });
