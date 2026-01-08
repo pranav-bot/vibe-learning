@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "~/utils/supabase/server";
 import { ProfileClient } from "./components/ProfileClient";
 import { db } from "~/server/db";
+import { Navbar } from "~/components/Navbar";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -21,6 +22,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Navbar user={user} />
       <ProfileClient 
         user={user} 
         profile={profile}

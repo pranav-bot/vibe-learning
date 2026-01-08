@@ -6,15 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/com
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { ArrowLeft, Save, Loader2, User as UserIcon, Upload } from "lucide-react";
-import Link from "next/link";
-import ThemeToggle from "~/components/ThemeToggle";
-import LoginButton from "~/components/LoginLogOutButton";
+import { Loader2, User as UserIcon, Upload } from "lucide-react";
 import { updateProfile } from "~/lib/auth-actions";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@prisma/client";
-import { ProfileButton } from "~/components/ProfileButton";
 import { createClient } from "~/utils/supabase/client";
 
 interface ProfileClientProps {
@@ -107,32 +103,9 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
   };
 
   return (
-    <div>
-      {/* Navigation */}
-      <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-6">
-            <Link href="/" className="flex items-center space-x-2">
-              <ArrowLeft className="h-5 w-5" />
-              <div className="h-8 w-8 rounded-lg bg-foreground"></div>
-              <span className="text-xl font-bold">Vibe Learning</span>
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link href="/library" className="text-sm font-medium hover:text-primary">
-              My Roadmaps
-            </Link>
-            <ThemeToggle />
-            <ProfileButton />
-            <LoginButton />
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="container max-w-2xl mx-auto px-6 py-12">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Profile Settings</h1>
+    <main className="container max-w-2xl mx-auto px-6 py-12">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Profile Settings</h1>
           <p className="text-muted-foreground mt-2">
             Manage your account settings and profile information
           </p>
@@ -225,6 +198,5 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
           </CardContent>
         </Card>
       </main>
-    </div>
   );
 }

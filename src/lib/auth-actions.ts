@@ -208,3 +208,13 @@ export async function updateProfile(formData: FormData) {
   revalidatePath("/profile");
   revalidatePath("/", "layout"); // Update avatar across the site
 }
+
+export async function checkUsernameAvailability(username: string) {
+  if (!username || username.length < 3) return false;
+  
+  const existing = await db.profile.findUnique({
+    where: { username },
+  });
+  
+  return !existing;
+}
