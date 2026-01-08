@@ -934,7 +934,7 @@ export const roadmapRouter = createTRPCRouter({
 
         const roadmaps = await db.roadmap.findMany({
           where: {
-            userId: input.userId,
+            profileId: input.userId,
             isPublic: true
           },
           include: {
