@@ -1,5 +1,4 @@
 import Link from "next/link";
-
 import SplitPanelWrapper from "~/components/SplitPanelWrapper";
 import FeatureShowcase from "~/components/FeatureShowcase";
 import { HydrateClient } from "~/trpc/server";
@@ -7,6 +6,7 @@ import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { createClient } from "~/utils/supabase/server";
 import { Navbar } from "~/components/Navbar";
+import { InfiniteWordClones } from "~/components/InfiniteWordClones";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -29,11 +29,13 @@ export default async function Home() {
         {/* Navigation */}
         <Navbar user={user} />
 
+        
+
         {/* Hero Section */}
         <section className="container mx-auto px-6 py-20 text-center">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-6xl md:text-7xl font-extrabold text-foreground mb-8 leading-tight">
-              Learn at the Speed of
+              <><InfiniteWordClones /></>
               <span className="text-muted-foreground"> Thought</span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed">
