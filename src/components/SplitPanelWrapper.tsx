@@ -10,70 +10,75 @@ gsap.registerPlugin(ScrollTrigger);
 
 export default function SplitPanelWrapper() {
   useEffect(() => {
-    // Create timeline for the split panel animation
-    const tl = gsap.timeline();
+    let trigger: ScrollTrigger | undefined;
+    const ctx = gsap.context(() => {
+      // Create timeline for the split panel animation
+      const tl = gsap.timeline();
 
-    // Animate both panels sliding away simultaneously
-    tl.to(".left-panel", {
-      x: "-100%",
-      duration: 1,
-      ease: "power4.inOut",
-    }).to(
-      ".right-panel",
-      {
-        x: "100%",
+      // Animate both panels sliding away simultaneously
+      tl.to(".left-panel", {
+        x: "-100%",
         duration: 1,
         ease: "power4.inOut",
-      },
-      "<" // Start at the same time as the previous tween
-    ).to(
-      ".center-content",
-      {
-        opacity: 0,
-        scale: 0.8,
-        duration: 0.8,
-        ease: "power2.out",
-      },
-      "<0.2" // Start slightly after the panels begin moving
-    ).from(
-      "#landing-content", 
-      {
-        y: 50,
-        opacity: 1,
-        duration: 0.8,
-        ease: "power2.out",
-      },
-      "<0.1" // Start as panels are opening
-    );
+      }).to(
+        ".right-panel",
+        {
+          x: "100%",
+          duration: 1,
+          ease: "power4.inOut",
+        },
+        "<" // Start at the same time as the previous tween
+      ).to(
+        ".center-content",
+        {
+          opacity: 0,
+          scale: 0.8,
+          duration: 0.8,
+          ease: "power2.out",
+        },
+        "<0.2" // Start slightly after the panels begin moving
+      ).from(
+        "#landing-content", 
+        {
+          y: 50,
+          opacity: 1,
+          duration: 0.8,
+          ease: "power2.out",
+        },
+        "<0.1" // Start as panels are opening
+      );
 
-    // Create ScrollTrigger to drive the timeline
-    ScrollTrigger.create({
-      animation: tl,
-      trigger: document.body,
-      start: "top top",
-      end: "1000vh top",
-      scrub: 1,
-      onLeave: () => {
-        // When animation completes, remove the spacer section and reset scroll
-        const spacer = document.getElementById("intro-spacer");
-        if (spacer) {
-          spacer.style.display = "none";
-          
-          // Hide wrapper immediately
-          gsap.set(".split-header-wrapper", { display: "none" });
-          
-          // Kill all scroll triggers to prevent reversal
-          ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-          
-          // Snap to top of content
-          window.scrollTo(0, 0);
+      // Create ScrollTrigger to drive the timeline
+      trigger = ScrollTrigger.create({
+        animation: tl,
+        trigger: document.body,
+        start: "top top",
+        end: "1000vh top",
+        scrub: 1,
+        onLeave: (self) => {
+          // When animation completes, remove the spacer section and reset scroll
+          const spacer = document.getElementById("intro-spacer");
+          if (spacer) {
+            spacer.style.display = "none";
+            
+            // Hide wrapper immediately
+            gsap.set(".split-header-wrapper", { display: "none" });
+            
+            // Kill ONLY this scroll trigger to prevent reversal
+            self.kill();
+            
+            // Snap to top of content
+            window.scrollTo(0, 0);
+            
+            // Refresh ScrollTrigger to ensure other triggers (like FeatureShowcase) 
+            // recalculate positions based on new layout
+            setTimeout(() => ScrollTrigger.refresh(), 100);
+          }
         }
-      }
+      });
     });
 
-    return () => {
-      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-    };
+    return () => ctx.revert();
   }, []);
 
   return (

@@ -129,6 +129,7 @@ export default function FeatureShowcase() {
                     src={feature.image}
                     alt={feature.imageAlt}
                     fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-contain p-4 transition-transform hover:scale-105 duration-700"
                   />
                 </div>
