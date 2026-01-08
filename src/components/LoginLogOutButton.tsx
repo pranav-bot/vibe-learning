@@ -13,6 +13,13 @@ const LoginButton = ({ user: initialUser }: { user?: User | null }) => {
   const supabase = createClient();
   
   useEffect(() => {
+    if (initialUser !== undefined) {
+      setUser(initialUser ?? null);
+      if (initialUser) setLoading(false);
+    }
+  }, [initialUser]);
+
+  useEffect(() => {
     const fetchUser = async () => {
       try {
         const {
@@ -63,9 +70,11 @@ const LoginButton = ({ user: initialUser }: { user?: User | null }) => {
   if (user) {
     return (
       <Button
-        onClick={() => {
-          void signout();
-          setUser(null);
+        onClick={async () => {
+             setLoading(true);
+             await signout();
+             setUser(null);
+             router.refresh();
         }}
       >
         Log out
