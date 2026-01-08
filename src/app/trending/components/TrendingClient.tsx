@@ -134,7 +134,7 @@ export default function TrendingClient({ user }: TrendingClientProps) {
                         <span>{roadmap.upvoteCount}</span>
                     </Button>
 
-                    <Link href={`/map?id=${roadmap.id}`} className="flex-1 md:flex-none">
+                    <Link href={`/map?roadmapId=${roadmap.id}`} className="flex-1 md:flex-none">
                         <Button className="w-full md:w-auto" size="sm">
                             View Roadmap
                             <ExternalLink className="ml-2 h-4 w-4" />
