@@ -9,6 +9,13 @@ import { ProfileButton } from "~/components/ProfileButton";
 import { type User } from "@supabase/supabase-js";
 import { createClient } from "~/utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { Menu } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "~/components/ui/sheet";
 
 interface NavbarProps {
   user: User | null;
@@ -76,6 +83,54 @@ export const Navbar = ({ user: initialUser }: NavbarProps) => {
             <LoginButton user={user} />
           </div>
         )}
+      </div>
+
+      {/* Mobile Menu */}
+      <div className="md:hidden flex items-center gap-2">
+        <ThemeToggle />
+        <Sheet>
+            <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="right">
+                <SheetTitle className="sr-only">Mobile Menu</SheetTitle>
+                <div className="flex flex-col space-y-4 mt-8">
+                    {!user ? (
+                        <>
+                            <div className="flex flex-col gap-2">
+                                <Button className="w-full" asChild>
+                                    <Link href="/login">Login</Link>
+                                </Button>
+                                <Button className="w-full" asChild>
+                                    <Link href="/signup">Get Started</Link>
+                                </Button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col space-y-4">
+                            <Button variant="ghost" className="justify-start" asChild>
+                                <Link href="/generate">Create</Link>
+                            </Button>
+                            <Button variant="ghost" className="justify-start" asChild>
+                                <Link href="/trending">Trending</Link>
+                            </Button>
+                            <Button variant="ghost" className="justify-start" asChild>
+                                <Link href="/library">My Roadmaps</Link>
+                            </Button>
+                            <div className="flex items-center justify-between pt-4 border-t">
+                                <span className="text-sm font-medium">Profile</span>
+                                <ProfileButton />
+                            </div>
+                            <div className="pt-2">
+                                <LoginButton user={user} />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </SheetContent>
+        </Sheet>
       </div>
     </nav>
   );

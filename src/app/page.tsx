@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import SplitPanelWrapper from "~/components/SplitPanelWrapper";
+import FeatureShowcase from "~/components/FeatureShowcase";
 import { HydrateClient } from "~/trpc/server";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -46,27 +47,23 @@ export default async function Home() {
                   <div className="text-center space-y-4">
                     <div className="h-16 w-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                       <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                       </svg>
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground">Roadmap Learning</h3>
-                    <p className="text-muted-foreground">
-                      Create comprehensive learning roadmaps for any topic with AI-generated content and structured progression
-                    </p>
+                    <div>
+                      <h3 className="text-2xl font-bold mb-2">Generate Roadmap</h3>
+                      <p className="text-muted-foreground">Create a custom learning path from any topic</p>
+                    </div>
                   </div>
                 </Link>
               </Card>
             </div>
-
-            {!user && (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" asChild>
-                  <Link href="/signup">Start Learning Free</Link>
-                </Button>
-              </div>
-            )}
           </div>
         </section>
+
+        {/* Feature Showcase Section */}
+        <FeatureShowcase />
+        </div>
 
         {/* Footer */}
         <footer className="border-t border-border py-12">
@@ -107,7 +104,6 @@ export default async function Home() {
             </div>
           </div>
         </footer>
-        </div>
       </div>
     </HydrateClient>
   );
