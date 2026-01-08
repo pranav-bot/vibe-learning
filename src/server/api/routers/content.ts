@@ -50,7 +50,7 @@ export const contentRouter = createTRPCRouter({
         console.log(`📄 Document has ${content.total_pages} pages`);
         
         // Extract topics using the topic extractor with timeout
-        const extractionPromise = topicExtractor(content, llms.gemini("gemini-2.0-flash-exp"));
+        const extractionPromise = topicExtractor(content, llms.gemini("gemini-2.5-flash"));
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error("Topic extraction timed out after 5 minutes")), 300000)
         );
@@ -166,7 +166,7 @@ export const contentRouter = createTRPCRouter({
         // Extract topics using the YouTube topic extractor with timeout
         const extractionPromise = youtubeTopicExtractor(
           transcriptData.data.transcript, 
-          llms.gemini("gemini-2.0-flash-exp")
+          llms.gemini("gemini-2.5-flash")
         );
         
         const timeoutPromise = new Promise((_, reject) => 
@@ -246,7 +246,7 @@ export const contentRouter = createTRPCRouter({
         const explainPromise = explain(
           input.userQuery,
           input.difficulty,
-          llms.gemini("gemini-2.0-flash-exp"),
+          llms.gemini("gemini-2.5-flash"),
           input.topic,
           input.pageNumber,
           input.contentId
@@ -310,7 +310,7 @@ export const contentRouter = createTRPCRouter({
         const visualizePromise = visualize(
           input.userQuery,
           input.difficulty,
-          llms.gemini("gemini-2.0-flash-exp"),
+          llms.gemini("gemini-2.5-flash"),
           input.topic
         );
         
@@ -372,7 +372,7 @@ export const contentRouter = createTRPCRouter({
         const comparisonPromise = generateTopicComparison(
           input.topic1,
           input.topic2,
-          llms.gemini("gemini-2.0-flash-exp")
+          llms.gemini("gemini-2.5-flash")
         );
         
         const timeoutPromise = new Promise((_, reject) => 

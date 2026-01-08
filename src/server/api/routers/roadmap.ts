@@ -23,7 +23,7 @@ export const roadmapRouter = createTRPCRouter({
           const roadmapPromise = generateRoadmap(
             input.topic,
             input.difficulty,
-            llms.gemini("gemini-2.0-flash")
+            llms.gemini("gemini-2.5-flash")
           );
           
           const timeoutPromise = new Promise((_, reject) => 
@@ -39,7 +39,7 @@ export const roadmapRouter = createTRPCRouter({
             roadmap = await generateRoadmap(
               input.topic,
               input.difficulty,
-              llms.gemini("Gemini 2.5 Flash")
+              llms.gemini("gemini-2.5-flash")
             );
           } catch (fallbackError) {
             console.error("❌ Fallback model also failed:", fallbackError);
