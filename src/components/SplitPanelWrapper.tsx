@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ArrowDown } from "lucide-react";
 import ScrambleText from "./ScrambleText";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -50,7 +51,7 @@ export default function SplitPanelWrapper() {
       animation: tl,
       trigger: document.body,
       start: "top top",
-      end: "100vh top",
+      end: "1000vh top",
       scrub: 1,
       onLeave: () => {
         // When animation completes, remove the spacer section and reset scroll
@@ -93,10 +94,13 @@ export default function SplitPanelWrapper() {
             className="text-xl md:text-2xl font-light"
             delay={1.5}
           />
-          <div className="absolute left-0 right-0 top-full mt-4 animate-bounce">
-            <span className="text-sm text-gray-500 opacity-0 animate-[fadeIn_0.5s_ease-out_2.5s_forwards]">
-            Scroll down to know more
-            </span>
+          <div className="mt-12 flex flex-col items-center animate-pulse">
+            <ScrambleText 
+              text="Scroll Down to Know More" 
+              className="text-xl md:text-2xl font-light"
+              delay={2.5}
+            />
+            <ArrowDown className="w-8 h-8 mt-4 animate-bounce" />
           </div>
         </div>
       </div>

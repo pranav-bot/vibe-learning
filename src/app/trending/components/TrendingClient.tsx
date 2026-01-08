@@ -100,10 +100,10 @@ export default function TrendingClient({ user }: TrendingClientProps) {
                         <Avatar className="h-5 w-5 group-hover:ring-1 ring-primary">
                             <AvatarImage src={roadmap.creator?.avatar_url ?? undefined} />
                             <AvatarFallback className="text-[10px]">
-                                {roadmap.creator?.full_name?.charAt(0) ?? <UserIcon className="h-3 w-3" />}
+                                {roadmap.creator?.name?.charAt(0) ?? <UserIcon className="h-3 w-3" />}
                             </AvatarFallback>
                         </Avatar>
-                        <span className="group-hover:underline">{roadmap.creator?.full_name ?? 'Anonymous'}</span>
+                        <span className="group-hover:underline">{roadmap.creator?.name ?? 'Anonymous'}</span>
                     </Link>
                     <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />

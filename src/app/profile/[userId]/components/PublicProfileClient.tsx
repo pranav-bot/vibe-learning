@@ -75,6 +75,9 @@ export default function PublicProfileClient({ userId, user }: PublicProfileClien
 
   const { profile, data: roadmaps } = profileQuery.data;
 
+  // Use username if available, fallback to full_name, then 'Anonymous'
+  const displayName = profile.username ?? profile.full_name ?? 'Anonymous';
+
   return (
     <main className="container mx-auto px-6 py-12">
         {/* Profile Header */}
@@ -82,10 +85,10 @@ export default function PublicProfileClient({ userId, user }: PublicProfileClien
             <Avatar className="h-24 w-24 mb-4 ring-2 ring-primary ring-offset-2 ring-offset-background">
                 <AvatarImage src={profile.avatar_url ?? undefined} />
                 <AvatarFallback className="text-2xl">
-                    {profile.full_name?.charAt(0) ?? <UserIcon className="h-10 w-10" />}
+                    {displayName.charAt(0)}
                 </AvatarFallback>
             </Avatar>
-            <h1 className="text-3xl font-bold">{profile.full_name ?? 'Anonymous'}</h1>
+            <h1 className="text-3xl font-bold">{displayName}</h1>
             <p className="text-muted-foreground mt-2">
                 {roadmaps.length} Public Roadmap{roadmaps.length !== 1 ? 's' : ''}
             </p>

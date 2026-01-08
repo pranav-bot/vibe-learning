@@ -898,7 +898,10 @@ export const roadmapRouter = createTRPCRouter({
             createdAt: roadmap.createdAt,
             updatedAt: roadmap.updatedAt,
             topicCount: roadmap.topics.length,
-            creator: roadmap.profile,
+            creator: {
+                ...roadmap.profile,
+                name: roadmap.profile?.username ?? roadmap.profile?.full_name ?? 'Anonymous'
+            },
             upvoteCount: roadmap._count.upvotes,
             isUpvoted: roadmap.upvotes ? roadmap.upvotes.length > 0 : false
           }))
@@ -923,6 +926,7 @@ export const roadmapRouter = createTRPCRouter({
           where: { id: input.userId },
           select: {
             id: true,
+            username: true,
             full_name: true,
             avatar_url: true,
           }
@@ -944,6 +948,7 @@ export const roadmapRouter = createTRPCRouter({
             profile: {
                 select: {
                     id: true,
+                    username: true,
                     full_name: true,
                     avatar_url: true,
                 }
@@ -982,7 +987,10 @@ export const roadmapRouter = createTRPCRouter({
             createdAt: roadmap.createdAt,
             updatedAt: roadmap.updatedAt,
             topicCount: roadmap.topics.length,
-            creator: roadmap.profile,
+            creator: {
+                ...roadmap.profile,
+                name: roadmap.profile?.username ?? roadmap.profile?.full_name ?? 'Anonymous'
+            },
             upvoteCount: roadmap._count.upvotes,
             isUpvoted: roadmap.upvotes ? roadmap.upvotes.length > 0 : false
           }))
