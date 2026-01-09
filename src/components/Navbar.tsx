@@ -62,6 +62,9 @@ export const Navbar = ({ user: initialUser }: NavbarProps) => {
         {!user ? (
           <>
             <ThemeToggle />
+            <Button variant="ghost" asChild>
+              <Link href="/trending">Trending</Link>
+            </Button>
             <LoginButton user={user} />
             <Button asChild>
               <Link href="/signup">Get Started</Link>
@@ -106,6 +109,9 @@ export const Navbar = ({ user: initialUser }: NavbarProps) => {
                                 <Button className="w-full" asChild>
                                     <Link href="/signup">Get Started</Link>
                                 </Button>
+                          <Button className="w-full" variant="ghost" asChild>
+                            <Link href="/trending">Trending</Link>
+                          </Button>
                             </div>
                         </>
                     ) : (

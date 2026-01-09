@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "~/utils/supabase/server";
 import LibraryClient from "./components/LibraryClient";
 import { Navbar } from "~/components/Navbar";
+import Footer from "~/components/Footer";
 
 export default async function LibraryPage() {
   const supabase = await createClient();
@@ -18,6 +19,7 @@ export default async function LibraryPage() {
     <div className="min-h-screen bg-background">
       <Navbar user={user} />
       <LibraryClient />
+      <Footer />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Navbar } from "~/components/Navbar";
 import Link from "next/link";
 import { Button } from "~/components/ui/button";
 import { redirect } from "next/navigation";
+import Footer from "~/components/Footer";
 
 export default async function GeneratePage() {
   const supabase = await createClient();
@@ -22,6 +23,7 @@ export default async function GeneratePage() {
         </Link>
       </div>
       <GenerateClient />
+      <Footer />
     </div>
   );
 }

@@ -5,7 +5,13 @@ import { gsap } from "gsap";
 import CanvasFlair from "./CanvasFlair";
 import FlairTrail from "./FlairTrail";
 
-export function InfiniteWordClones() {
+interface InfiniteWordClonesProps {
+  text?: string;
+  /** Optional tailwind text size classes to override defaults (e.g. "text-2xl md:text-4xl") */
+  textClass?: string;
+}
+
+export function InfiniteWordClones({ text, textClass }: InfiniteWordClonesProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const wordRef = useRef<HTMLDivElement | null>(null);
 
@@ -79,11 +85,11 @@ export function InfiniteWordClones() {
         <FlairTrail />
       </div>
         
-      <div 
-        ref={wordRef} 
-        className="text-5xl md:text-8xl font-black text-foreground/90 tracking-tighter uppercase z-10 text-center whitespace-nowrap"
+      <div
+        ref={wordRef}
+        className={`${textClass ?? 'text-5xl md:text-8xl'} font-black text-foreground/90 tracking-tighter uppercase z-10 text-center whitespace-nowrap`}
       >
-        CrowdSourced Udemy
+        {text ?? "CrowdSourced Udemy"}
       </div>
     </div>
   );

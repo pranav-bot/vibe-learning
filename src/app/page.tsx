@@ -8,6 +8,7 @@ import { createClient } from "~/utils/supabase/server";
 import { Navbar } from "~/components/Navbar";
 import { InfiniteWordClones } from "~/components/InfiniteWordClones";
 import ScrollRevealText from "~/components/ScrollReveal";
+import Footer from "~/components/Footer";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -99,44 +100,7 @@ export default async function Home() {
         </div>
 
         {/* Footer */}
-        <footer className="border-t border-border py-12">
-          <div className="container mx-auto px-6">
-            <div className="grid md:grid-cols-4 gap-8">
-              <div>
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="h-8 w-8 rounded-lg bg-foreground"></div>
-                  <span className="text-xl font-bold text-foreground">Knowful</span>
-                </div>
-                <p className="text-muted-foreground">
-                  Empowering learners worldwide with AI-driven education.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-semibold text-foreground mb-4">Product</h4>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li><Link href="/library" className="hover:text-foreground transition-colors">Roadmap Learning</Link></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold text-foreground mb-4">Company</h4>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li><Link href="/about" className="hover:text-foreground transition-colors">About</Link></li>
-                  <li><Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link></li>
-                </ul>
-              </div>
-              {/* <div>
-                <h4 className="font-semibold text-foreground mb-4">Support</h4>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li><Link href="/help" className="hover:text-foreground transition-colors">Help Center</Link></li>
-                  <li><Link href="/docs" className="hover:text-foreground transition-colors">Documentation</Link></li>
-                </ul>
-              </div> */}
-            </div>
-            {/* <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
-              <p>&copy; 2025 Vibe Learning. All rights reserved.</p>
-            </div> */}
-          </div>
-        </footer>
+        <Footer />
       </div>
     </HydrateClient>
   );

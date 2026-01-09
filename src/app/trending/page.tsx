@@ -1,5 +1,6 @@
 import TrendingClient from "./components/TrendingClient";
 import { Navbar } from "~/components/Navbar";
+import Footer from "~/components/Footer";
 import { headers } from "next/headers";
 import { createTRPCContext } from "~/server/api/trpc";
 import { createCaller } from "~/server/api/root";
@@ -24,6 +25,7 @@ export default async function TrendingPage() {
     <div className="min-h-screen bg-background">
       <Navbar user={null} />
       <TrendingClient user={null} initialData={initialData} />
+      <Footer />
     </div>
   );
 }
