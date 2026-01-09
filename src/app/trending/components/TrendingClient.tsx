@@ -22,11 +22,18 @@ import { cn } from "~/lib/utils";
 
 interface TrendingClientProps {
   user: User | null;
+  initialData?: any;
 }
 
-export default function TrendingClient({ user }: TrendingClientProps) {
-  const trendingQuery = api.roadmap.getTrending.useQuery({ limit: 20 });
+export default function TrendingClient({ user, initialData }: TrendingClientProps) {
+  const trendingQuery = api.roadmap.getTrending.useQuery(
+    { limit: 20 },
+    { initialData: initialData ?? undefined }
+  );
   const utils = api.useUtils();
+
+  // Show a small CTA banner for unauthenticated users
+  const showLoginCTA = !user;
 
   const toggleUpvoteMutation = api.roadmap.toggleUpvote.useMutation({
     onSuccess: async (data, variables) => {
@@ -50,11 +57,29 @@ export default function TrendingClient({ user }: TrendingClientProps) {
     <div className="min-h-screen bg-background">
       {/* Main Content */}
       <main className="container mx-auto px-6 py-12">
-        <div className="mb-12 text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-                <Flame className="h-8 w-8 text-orange-500" />
-                <h1 className="text-4xl font-bold">Trending Roadmaps</h1>
+        <div className="mb-6 text-center">
+          {showLoginCTA && (
+            <div className="max-w-3xl mx-auto mb-6">
+              <Card className="p-4 bg-muted/30 border-border">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="text-left">
+                    <h4 className="font-semibold">Want to upvote a roadmap?</h4>
+                    <p className="text-sm text-muted-foreground">Log in to upvote and support creators — it only takes a few seconds.</p>
+                  </div>
+                  <div>
+                    <Link href="/login">
+                      <Button>Log in to upvote</Button>
+                    </Link>
+                  </div>
+                </div>
+              </Card>
             </div>
+          )}
+
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Flame className="h-8 w-8 text-orange-500" />
+            <h1 className="text-4xl font-bold">Trending Roadmaps</h1>
+          </div>
           <p className="text-muted-foreground text-lg">
             Discover popular learning paths created by the community
           </p>

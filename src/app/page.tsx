@@ -73,6 +73,22 @@ export default async function Home() {
                     </div>
                   </Link>
                 </Card>
+              
+                <Card className="p-8 hover:shadow-lg transition-all border-2 hover:border-primary cursor-pointer group w-full mt-4">
+                  <Link href="/trending" className="block">
+                    <div className="text-center space-y-4">
+                      <div className="h-16 w-16 mx-auto rounded-full bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
+                        <svg className="h-8 w-8 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17l6-6 4 4 8-8" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2">Trending Roadmaps</h3>
+                        <p className="text-muted-foreground">Browse public roadmaps shared by the community</p>
+                      </div>
+                    </div>
+                  </Link>
+                </Card>
               </div>
             </div>
           </div>
