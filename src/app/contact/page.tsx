@@ -2,11 +2,15 @@ import { Navbar } from "~/components/Navbar";
 import { InfiniteWordClones } from "~/components/InfiniteWordClones";
 import Footer from "~/components/Footer";
 import { Button } from "~/components/ui/button";
+import { createClient } from "~/utils/supabase/server";
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <div className="min-h-screen bg-background">
-      <Navbar user={null} />
+      <Navbar user={user} />
       <div className="flex items-center justify-center py-8">
         <div className="w-full">
           <InfiniteWordClones text={"axionyt2810@gmail.com"} textClass={"text-2xl md:text-4xl"} />

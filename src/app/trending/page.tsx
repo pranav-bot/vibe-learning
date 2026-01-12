@@ -4,8 +4,14 @@ import Footer from "~/components/Footer";
 import { headers } from "next/headers";
 import { createTRPCContext } from "~/server/api/trpc";
 import { createCaller } from "~/server/api/root";
+import { createClient } from "~/utils/supabase/server";
 
 export default async function TrendingPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   // Create a server-side tRPC caller with request headers so we can fetch trending roadmaps
   // and pass them as initial data to the client component.
   let initialData = undefined;
@@ -23,8 +29,8 @@ export default async function TrendingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar user={null} />
-      <TrendingClient user={null} initialData={initialData} />
+      <Navbar user={user} />
+      <TrendingClient user={user} initialData={initialData} />
       <Footer />
     </div>
   );

@@ -87,7 +87,7 @@ export function InfiniteWordClones({ text, textClass }: InfiniteWordClonesProps)
         
       <div
         ref={wordRef}
-        className={`${textClass ?? 'text-5xl md:text-8xl'} font-black text-foreground/90 tracking-tighter uppercase z-10 text-center whitespace-nowrap`}
+        className={`${textClass ?? 'text-5xl md:text-8xl'} font-black text-foreground/90 tracking-tighter uppercase z-10 text-center break-words max-w-[90vw]`}
       >
         {text ?? "CrowdSourced Udemy"}
       </div>
