@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ScrollReveal from "~/components/ScrollReveal";
 
 export default function Footer() {
   return (
@@ -38,6 +39,11 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
+          </div>
+          <div className="hidden md:flex items-center justify-end">
+            <div className="w-48">
+              <ScrollReveal compact />
+            </div>
           </div>
         </div>
       </div>
