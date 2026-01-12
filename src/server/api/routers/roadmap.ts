@@ -5,6 +5,7 @@ import { youtubeResources } from "~/course-builder-ai/resources";
 import { generateProjectsForRoadmap, type Project } from "~/course-builder-ai/projects";
 import llms from "~/lib/llms";
 import { db } from "~/server/db";
+import { createId } from "@paralleldrive/cuid2";
 
 export const roadmapRouter = createTRPCRouter({
   generate: protectedProcedure
@@ -177,6 +178,22 @@ export const roadmapRouter = createTRPCRouter({
         console.log(`💾 Starting roadmap save for: ${input.roadmap.title}`);
         console.log(`👤 User ID: ${ctx.user?.id ?? 'anonymous'}`);
         
+        // Regenerate topic IDs to ensure global uniqueness and avoid collisions
+        // Map to store oldId -> newId mapping
+        const idMap = new Map<string, string>();
+        
+        // First pass: Generate new IDs for all topics
+        input.roadmap.topics.forEach(topic => {
+          idMap.set(topic.id, createId());
+        });
+        
+        // Second pass: Create new topic objects with updated IDs and parentIds
+        const newTopics = input.roadmap.topics.map(topic => ({
+          ...topic,
+          id: idMap.get(topic.id)!, // Should always exist
+          parentId: topic.parentId ? idMap.get(topic.parentId) : null
+        }));
+
         // Create the roadmap record
         const savedRoadmap = await db.roadmap.create({
           data: {
@@ -185,7 +202,7 @@ export const roadmapRouter = createTRPCRouter({
             difficulty: input.roadmap.difficulty,
             profileId: ctx.user?.id ?? null, // Use the authenticated user ID
             topics: {
-              create: input.roadmap.topics.map(topic => ({
+              create: newTopics.map(topic => ({
                 id: topic.id,
                 title: topic.title,
                 summary: topic.summary,
@@ -220,7 +237,12 @@ export const roadmapRouter = createTRPCRouter({
         
         if (error instanceof Error) {
           if (error.message.includes("Unique constraint")) {
-            throw new Error("A roadmap with this title already exists. Please choose a different title.");
+            // Check which constraint failed
+            if (error.message.includes("roadmap_pkey")) {
+               throw new Error("A roadmap with this ID already exists.");
+            }
+             // Fallback for other unique constraints, though with unique Topic IDs this should be rare/impossible for topics
+             throw new Error("A database constraint was violated. Please try again.");
           }
           if (error.message.includes("Foreign key constraint")) {
             throw new Error("Invalid profile ID provided.");

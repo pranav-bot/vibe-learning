@@ -108,8 +108,8 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
   };
 
   return (
-    <div className="container max-w-2xl py-10">
-      <h1 className="text-3xl font-bold mb-8">Profile Settings</h1>
+    <div className="container max-w-2xl py-10 mx-auto">
+      <h1 className="text-3xl font-bold mb-8 text-center">Profile Settings</h1>
       
       <Card className="mb-8">
         <CardHeader>
