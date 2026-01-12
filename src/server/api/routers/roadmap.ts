@@ -73,21 +73,7 @@ export const roadmapRouter = createTRPCRouter({
         console.log(`📚 Generated ${Object.keys(roadmap.topics).length} topics`);
         console.log(`🗺️ Roadmap output:`, JSON.stringify(roadmap, null, 2));
 
-        // Deduct credit
-        await ctx.db.$transaction([
-          ctx.db.profile.update({
-            where: { id: ctx.user.id },
-            data: { credits: { decrement: 1 } },
-          }),
-          ctx.db.creditTransaction.create({
-            data: {
-              profileId: ctx.user.id,
-              amount: -1,
-              type: "GENERATE_ROADMAP",
-              description: `Generated roadmap for topic: ${input.topic}`,
-            },
-          }),
-        ]);
+        // NOTE: Credit deduction moved to save procedure to link transaction with roadmap ID
         
         return {
           success: true,
@@ -156,7 +142,7 @@ export const roadmapRouter = createTRPCRouter({
       }
     }),
 
-  save: publicProcedure
+  save: protectedProcedure
     .input(z.object({
       roadmap: z.object({
         title: z.string(),
@@ -177,6 +163,16 @@ export const roadmapRouter = createTRPCRouter({
       try {
         console.log(`💾 Starting roadmap save for: ${input.roadmap.title}`);
         console.log(`👤 User ID: ${ctx.user?.id ?? 'anonymous'}`);
+
+        // Check credits again before saving/deducting
+        const profile = await ctx.db.profile.findUnique({
+          where: { id: ctx.user.id },
+          select: { credits: true },
+        });
+
+        if (!profile || profile.credits < 1) {
+           throw new Error("Insufficient credits. Please purchase more credits.");
+        }
         
         // Regenerate topic IDs to ensure global uniqueness and avoid collisions
         // Map to store oldId -> newId mapping
@@ -217,7 +213,24 @@ export const roadmapRouter = createTRPCRouter({
           }
         });
         
-        console.log(`✅ Roadmap saved successfully with ID: ${savedRoadmap.id}`);
+        // Deduct credit and record transaction linked to the new roadmap
+        await ctx.db.$transaction([
+          ctx.db.profile.update({
+            where: { id: ctx.user.id },
+            data: { credits: { decrement: 1 } },
+          }),
+          ctx.db.creditTransaction.create({
+            data: {
+              profileId: ctx.user.id,
+              roadmapId: savedRoadmap.id,
+              amount: -1,
+              type: "GENERATE_ROADMAP",
+              description: `Generated roadmap for topic: ${input.roadmap.title}`,
+            },
+          }),
+        ]);
+
+        console.log(`✅ Roadmap saved and credits deducted. ID: ${savedRoadmap.id}`);
         console.log(`📚 Saved ${savedRoadmap.topics.length} topics`);
         
         return {

@@ -13,6 +13,7 @@ import type { User } from "@supabase/supabase-js";
 import type { Profile, CreditTransaction } from "@prisma/client";
 import { createClient } from "~/utils/supabase/client";
 import { format } from "date-fns";
+import Link from "next/link";
 
 type ProfileWithTransactions = Profile & {
   creditTransactions: CreditTransaction[];
@@ -126,7 +127,13 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
                 {profile.creditTransactions.map((tx) => (
                   <div key={tx.id} className="p-4 flex justify-between items-center text-sm">
                     <div>
-                      <p className="font-medium">{tx.description ?? tx.type}</p>
+                      {tx.roadmapId ? (
+                        <Link href={`/map?roadmapId=${tx.roadmapId}`} className="font-medium hover:underline text-blue-600">
+                          {tx.description ?? tx.type}
+                        </Link>
+                      ) : (
+                        <p className="font-medium">{tx.description ?? tx.type}</p>
+                      )}
                       <p className="text-muted-foreground text-xs">
                         {format(new Date(tx.createdAt), "PPpp")}
                       </p>
