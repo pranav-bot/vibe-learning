@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { generateRoadmap } from "~/course-builder-ai/roadmap";
 import { youtubeResources } from "~/course-builder-ai/resources";
 import { generateProjectsForRoadmap, type Project } from "~/course-builder-ai/projects";
@@ -7,15 +7,36 @@ import llms from "~/lib/llms";
 import { db } from "~/server/db";
 
 export const roadmapRouter = createTRPCRouter({
-  generate: publicProcedure
+  generate: protectedProcedure
     .input(z.object({ 
       topic: z.string(),
       difficulty: z.enum(["beginner", "intermediate", "advanced"])
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
         console.log(`🗺️ Starting roadmap generation for topic: ${input.topic}`);
         console.log(`🎚️ Difficulty: ${input.difficulty}`);
+
+        // Check credits
+        let profile = await ctx.db.profile.findUnique({
+          where: { id: ctx.user.id },
+          select: { credits: true },
+        });
+
+        if (!profile) {
+          // Create profile if it doesn't exist
+          profile = await ctx.db.profile.create({
+            data: {
+              id: ctx.user.id,
+              email: ctx.user.email,
+            },
+            select: { credits: true },
+          });
+        }
+
+        if (profile.credits < 1) {
+          throw new Error("Insufficient credits. Please purchase more credits or wait for refill.");
+        }
         
         // Try with gemini-2.0-flash first, then fallback to other models if needed
         let roadmap;
@@ -50,6 +71,22 @@ export const roadmapRouter = createTRPCRouter({
         console.log(`✅ Roadmap generated successfully`);
         console.log(`📚 Generated ${Object.keys(roadmap.topics).length} topics`);
         console.log(`🗺️ Roadmap output:`, JSON.stringify(roadmap, null, 2));
+
+        // Deduct credit
+        await ctx.db.$transaction([
+          ctx.db.profile.update({
+            where: { id: ctx.user.id },
+            data: { credits: { decrement: 1 } },
+          }),
+          ctx.db.creditTransaction.create({
+            data: {
+              profileId: ctx.user.id,
+              amount: -1,
+              type: "GENERATE_ROADMAP",
+              description: `Generated roadmap for topic: ${input.topic}`,
+            },
+          }),
+        ]);
         
         return {
           success: true,

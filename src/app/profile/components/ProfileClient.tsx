@@ -10,12 +10,17 @@ import { Loader2, User as UserIcon, Upload } from "lucide-react";
 import { updateProfile } from "~/lib/auth-actions";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
-import type { Profile } from "@prisma/client";
+import type { Profile, CreditTransaction } from "@prisma/client";
 import { createClient } from "~/utils/supabase/client";
+import { format } from "date-fns";
+
+type ProfileWithTransactions = Profile & {
+  creditTransactions: CreditTransaction[];
+};
 
 interface ProfileClientProps {
   user: User;
-  profile: Profile | null;
+  profile: ProfileWithTransactions | null;
 }
 
 export function ProfileClient({ user, profile }: ProfileClientProps) {
@@ -99,104 +104,132 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
       .map(n => n[0])
       .join('')
       .toUpperCase()
-      .slice(0, 2);
+      .substring(0, 2);
   };
 
   return (
-    <main className="container max-w-2xl mx-auto px-6 py-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Profile Settings</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your account settings and profile information
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Public Profile</CardTitle>
-            <CardDescription>
-              This is how others will see you on the site.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Avatar Section */}
-              <div className="flex flex-col items-center sm:flex-row gap-6 p-4 border rounded-lg bg-accent/10">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={formData.avatar_url} />
-                  <AvatarFallback className="text-2xl">
-                    {formData.full_name ? getInitials(formData.full_name) : <UserIcon className="h-10 w-10" />}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-2 w-full">
-                  <Label htmlFor="avatar_url">Profile Picture URL</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="avatar_url"
-                      name="avatar_url"
-                      placeholder="https://example.com/avatar.jpg"
-                      value={formData.avatar_url}
-                      onChange={handleChange}
-                    />
-                    <Button
-                      variant="outline"
-                      asChild
-                      disabled={uploading}
-                    >
-                      <label htmlFor="avatar_upload" className="cursor-pointer">
-                        {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                        {uploading ? 'Uploading...' : 'Upload'}
-                      </label>
-                    </Button>
-                    <input
-                      type="file"
-                      id="avatar_upload"
-                      accept="image/*"
-                      onChange={handleUpload}
-                      className="hidden"
-                    />
+    <div className="container max-w-2xl py-10">
+      <h1 className="text-3xl font-bold mb-8">Profile Settings</h1>
+      
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Credits</CardTitle>
+          <CardDescription>
+            Balance: <span className="font-bold text-primary">{profile?.credits ?? 0}</span> credits
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <h3 className="text-sm font-medium mb-4">Transaction History</h3>
+          <div className="space-y-4">
+            {profile?.creditTransactions?.length ? (
+              <div className="border rounded-md divide-y">
+                {profile.creditTransactions.map((tx) => (
+                  <div key={tx.id} className="p-4 flex justify-between items-center text-sm">
+                    <div>
+                      <p className="font-medium">{tx.description ?? tx.type}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {format(new Date(tx.createdAt), "PPpp")}
+                      </p>
+                    </div>
+                    <div className={tx.amount > 0 ? "text-green-600" : "text-red-600"}>
+                      {tx.amount > 0 ? "+" : ""}{tx.amount}
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Enter a URL for your profile picture.
-                  </p>
-                </div>
+                ))}
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No transactions yet.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+      <Card>
+        <CardHeader>
+          <CardTitle>Public Profile</CardTitle>
+          <CardDescription>
+            This is how others will see you on the site.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Avatar Section */}
+            <div className="flex flex-col items-center sm:flex-row gap-6 p-4 border rounded-lg bg-accent/10">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={formData.avatar_url} />
+                <AvatarFallback className="text-2xl">
+                  {formData.full_name ? getInitials(formData.full_name) : <UserIcon className="h-10 w-10" />}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-2 w-full">
+                <Label htmlFor="avatar_url">Profile Picture URL</Label>
+                <div className="flex items-center gap-2">
                   <Input
-                    id="email"
-                    value={formData.email}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Email address cannot be changed.
-                  </p>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="full_name">Full Name</Label>
-                  <Input
-                    id="full_name"
-                    name="full_name"
-                    placeholder="Enter your full name"
-                    value={formData.full_name}
+                    id="avatar_url"
+                    name="avatar_url"
+                    placeholder="https://example.com/avatar.jpg"
+                    value={formData.avatar_url}
                     onChange={handleChange}
                   />
+                  <Button
+                    variant="outline"
+                    asChild
+                    disabled={uploading}
+                  >
+                    <label htmlFor="avatar_upload" className="cursor-pointer">
+                      {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                      {uploading ? 'Uploading...' : 'Upload'}
+                    </label>
+                  </Button>
+                  <input
+                    type="file"
+                    id="avatar_upload"
+                    accept="image/*"
+                    onChange={handleUpload}
+                    className="hidden"
+                  />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Enter a URL for your profile picture.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  value={formData.email}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Email address cannot be changed.
+                </p>
               </div>
 
-              <div className="flex justify-end">
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Changes
-                </Button>
+              <div className="grid gap-2">
+                <Label htmlFor="full_name">Full Name</Label>
+                <Input
+                  id="full_name"
+                  name="full_name"
+                  placeholder="Enter your full name"
+                  value={formData.full_name}
+                  onChange={handleChange}
+                />
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      </main>
+            </div>
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

@@ -15,6 +15,7 @@ import { Label } from "~/components/ui/label";
 import { Slider } from "~/components/ui/slider";
 import { Badge } from "~/components/ui/badge";
 import { api } from "~/trpc/react";
+import { toast } from "sonner";
 
 interface DifficultyDialogProps {
   isOpen: boolean;
@@ -91,6 +92,7 @@ export default function DifficultyDialog({ isOpen, onClose, courseTitle, initial
     onError: (error) => {
       console.error("❌ Error generating roadmap:", error);
       setIsGenerating(false);
+      toast.error(error.message || "Failed to generate roadmap. Please try again.");
     }
   });
 

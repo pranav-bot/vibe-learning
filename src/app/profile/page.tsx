@@ -16,9 +16,30 @@ export default async function ProfilePage() {
   }
 
   // Fetch profile from database
-  const profile = await db.profile.findUnique({
+  let profile = await db.profile.findUnique({
     where: { id: user.id },
+    include: {
+      creditTransactions: {
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
+
+  if (!profile) {
+    profile = await db.profile.create({
+      data: {
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata.full_name,
+        avatar_url: user.user_metadata.avatar_url,
+      },
+      include: {
+        creditTransactions: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+  }
 
   return (
     <div className="min-h-screen bg-background">

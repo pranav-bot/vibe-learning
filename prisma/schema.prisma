@@ -28,9 +28,12 @@ model Profile {
     username   String?   @unique
     avatar_url String?
     
+    credits    Int       @default(5)
+
     // Relations
     roadmaps   Roadmap[]
     upvotes    Upvote[]
+    creditTransactions CreditTransaction[]
 
     @@map("profiles")
 }
@@ -52,6 +55,7 @@ model Roadmap {
     topics      Topic[]
     projects    Project[]
     upvotes     Upvote[]
+    creditTransactions CreditTransaction[]
     
     @@map("roadmaps")
 }
@@ -170,4 +174,26 @@ enum ProjectDifficulty {
     BEGINNER
     INTERMEDIATE
     ADVANCED
+}
+
+model CreditTransaction {
+    id          String   @id @default(cuid())
+    amount      Int
+    type        TransactionType
+    description String?
+    createdAt   DateTime @default(now())
+    
+    profileId   String   @db.Uuid
+    profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    
+    roadmapId   String?
+    roadmap     Roadmap? @relation(fields: [roadmapId], references: [id], onDelete: SetNull)
+    
+    @@map("credit_transactions")
+}
+
+enum TransactionType {
+    PURCHASE
+    GENERATE_ROADMAP
+    ADMIN_ADJUSTMENT
 }
