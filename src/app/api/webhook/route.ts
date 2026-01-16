@@ -24,27 +24,34 @@ export const POST = Webhooks({
     const customer = payloadData.customer || payloadData.data?.customer;
     const paymentId = payloadData.payment_id || payloadData.data?.payment_id || "unknown_payment_id";
 
-    if (!metadata?.userId && !customer?.email) {
-      console.error("No userId or email found in payload", payload);
+    if (!metadata?.userId) {
+      console.error("No userId found in metadata", payload);
       return;
     }
 
     try {
       const userId = metadata?.userId;
       const email = customer?.email;
-      console.log(`Processing payment for UserID: ${userId}, Email: ${email}`);
+      console.log(`Processing payment for UserID from metadata: ${userId}, Email: ${email}`);
 
-      // Find profile
-      // Prioritize email lookup to ensure we identify the correct user account
-      // even if metadata is missing or malformed.
       let profile = null;
-      
-      if (email) {
-        profile = await db.profile.findUnique({ where: { email: email } });
+
+      // 1. Try finding by ID (Most reliable if metadata exists)
+      if (userId) {
+         profile = await db.profile.findUnique({ where: { id: userId } });
       }
 
-      if (!profile && userId) {
-        profile = await db.profile.findUnique({ where: { id: userId } });
+      // 2. Fallback to Email (If metadata is empty/stripped)
+      // We must use this because the Dodo payload sometimes strips metadata in test mode,
+      // and this is the only way to link the payment to the user account.
+      if (!profile && email) {
+      console.log("Metadata userId not found or profile missing. Falling back to email lookup.");
+         profile = await db.profile.findUnique({ where: { email: email } });
+      }
+
+      if (!profile) {
+        console.error("Profile not found for payment", paymentId);
+        return;
       }
 
       if (!profile) {

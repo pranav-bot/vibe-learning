@@ -144,7 +144,7 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
                         <p className="font-medium">{tx.description ?? tx.type}</p>
                       )}
       <p className="text-muted-foreground text-xs" suppressHydrationWarning>
-        {format(new Date(tx.createdAt), "PPpp")}
+        {tx.createdAt ? format(new Date(tx.createdAt), "PPpp") : ""}
       </p>
                     </div>
                     <div className={tx.amount > 0 ? "text-green-600" : "text-red-600"}>
