@@ -35,9 +35,17 @@ export const POST = Webhooks({
       console.log(`Processing payment for UserID: ${userId}, Email: ${email}`);
 
       // Find profile
-      const profile = userId
-        ? await db.profile.findUnique({ where: { id: userId } })
-        : await db.profile.findUnique({ where: { email: email } });
+      // Prioritize email lookup to ensure we identify the correct user account
+      // even if metadata is missing or malformed.
+      let profile = null;
+      
+      if (email) {
+        profile = await db.profile.findUnique({ where: { email: email } });
+      }
+
+      if (!profile && userId) {
+        profile = await db.profile.findUnique({ where: { id: userId } });
+      }
 
       if (!profile) {
         console.error("Profile not found for payment", paymentId);
