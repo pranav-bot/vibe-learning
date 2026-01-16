@@ -14,10 +14,20 @@ import {
 import { 
   BookOpen,
   Send,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import DifficultyDialog from "~/components/DifficultyDialog";
+import { BuyCreditsButton } from "~/components/BuyCreditsButton";
+import type { User } from "@supabase/supabase-js";
+import Link from "next/link";
 
-export default function GenerateClient() {
+interface GenerateClientProps {
+  user: User;
+  credits: number;
+}
+
+export default function GenerateClient({ user, credits }: GenerateClientProps) {
   const [topicName, setTopicName] = useState('');
   const [difficulty, setDifficulty] = useState<"beginner" | "intermediate" | "advanced">("beginner");
   const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
@@ -43,6 +53,33 @@ export default function GenerateClient() {
             <p className="text-xl text-muted-foreground mb-8">
               Enter any topic and we&apos;ll create a personalized learning experience for you
             </p>
+
+            <div className="flex flex-col gap-4 mb-8 items-center">
+                <div className="bg-muted/50 p-4 rounded-lg flex items-center gap-4 justify-between max-w-md w-full border border-border">
+                    <div className="flex items-center gap-2">
+                        <Zap className={`h-5 w-5 ${credits > 0 ? "text-yellow-500" : "text-muted-foreground"}`} />
+                        <span className="font-semibold">
+                            {credits} Credit{credits !== 1 ? 's' : ''} Available
+                        </span>
+                    </div>
+                     <BuyCreditsButton user={user} size="sm" variant="outline" />
+                </div>
+                
+                 {credits === 0 && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg max-w-md w-full border border-blue-200 dark:border-blue-800">
+                        <div className="flex flex-col gap-2 text-center items-center">
+                            <p className="text-sm text-muted-foreground">
+                                No credits? Check out free roadmaps made by the community.
+                            </p>
+                            <Link href="/trending">
+                                <Button variant="link" size="sm" className="text-blue-600 dark:text-blue-400 p-0 h-auto font-semibold">
+                                    Explore Trending Roadmaps <span aria-hidden="true">&rarr;</span>
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+                )}
+            </div>
           </div>
 
           <Card className="p-8">
