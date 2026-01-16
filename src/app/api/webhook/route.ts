@@ -11,19 +11,26 @@ export const POST = Webhooks({
   },
 
   onPaymentSucceeded: async (payload) => {
-    console.log("Received onPaymentSucceeded webhook:", payload);
+    console.log("Received onPaymentSucceeded webhook:", JSON.stringify(payload, null, 2));
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { customer, metadata, payment_id } = payload as any; 
     
+    // Check various possible locations for metadata/customer
+    // Dodo payload might be structured differently depending on the event version
+    // Sometimes the resource is wrapped in `data`
+    // const actualMetadata = metadata || (payload as any).data?.metadata;
+    // const actualCustomer = customer || (payload as any).data?.customer;
+
     if (!metadata?.userId && !customer?.email) {
-      console.error("No userId or email found in payload");
+      console.error("No userId or email found in payload", payload);
       return;
     }
 
     try {
       const userId = metadata?.userId;
       const email = customer?.email;
+      console.log(`Processing payment for UserID: ${userId}, Email: ${email}`);
 
       // Find profile
       const profile = userId
@@ -35,11 +42,13 @@ export const POST = Webhooks({
         return;
       }
 
+      console.log(`Found profile: ${profile.id}. Adding credits...`);
+
       // Add credits (assuming 1 credit per purchase for now, or derive from amount)
       // Since product is fixed price 100 ($1.00) for 1 credit.
       // We can just add 1 credit.
 
-      await db.$transaction([
+      const result = await db.$transaction([
         db.profile.update({
           where: { id: profile.id },
           data: {
@@ -56,10 +65,10 @@ export const POST = Webhooks({
         }),
       ]);
 
-      console.log(`Added 1 credit to user ${profile.id}`);
+      console.log(`Successfully added 1 credit to user ${profile.id}. New Balance details:`, result[0]);
     } catch (error) {
-      console.error("Error processing webhook:", error);
-      throw error; // Rethrow to let Dodo know it failed (500)
+        console.error("Error processing webhook:", error);
+        throw error; 
     }
   },
 });

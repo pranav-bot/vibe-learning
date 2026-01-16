@@ -71,7 +71,7 @@ export function BuyCreditsButton({ user, className, variant = "default", size = 
     return (
         <Button onClick={handleBuyCredits} disabled={buying} className={className} variant={variant} size={size}>
             {buying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Buy 1 Credit {showPrice && "($1.00)"}
+            Buy 1 Credit {showPrice && "(₹100 / $1.00)"}
         </Button>
     );
 }
