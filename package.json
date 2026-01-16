@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^1.2.19",
+    "@dodopayments/nextjs": "^0.3.3",
     "@hookform/resolvers": "^5.1.1",
     "@paralleldrive/cuid2": "^3.0.6",
     "@prisma/client": "^6.5.0",

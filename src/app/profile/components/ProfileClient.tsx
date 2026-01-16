@@ -14,6 +14,7 @@ import type { Profile, CreditTransaction } from "@prisma/client";
 import { createClient } from "~/utils/supabase/client";
 import { format } from "date-fns";
 import Link from "next/link";
+import { products } from "~/lib/products";
 
 type ProfileWithTransactions = Profile & {
   creditTransactions: CreditTransaction[];
@@ -27,6 +28,7 @@ interface ProfileClientProps {
 export function ProfileClient({ user, profile }: ProfileClientProps) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [buying, setBuying] = useState(false); // Add state for buying
   const supabase = createClient();
   
   // Initial state
@@ -99,6 +101,56 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
     }
   };
 
+  const handleBuyCredits = async () => {
+    try {
+      setBuying(true);
+      const product = products[0]; // Assuming first product is 1 Credit
+      
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          product_cart: [{
+            product_id: product.product_id,
+            quantity: 1
+          }],
+          billing: {
+            city: "New York", 
+            country: "US", 
+            state: "NY", 
+            street: "123 Main St", 
+            zipcode: "10001"
+          },
+          customer: {
+            email: user.email,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            name: formData.full_name || (user as any).email,
+          },
+            metadata: {
+            userId: user.id,
+          }
+        }),
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else if (data.checkout_url) {
+         window.location.href = data.checkout_url; 
+      } else {
+          toast.error("Failed to create checkout session");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong");
+    } finally {
+      setBuying(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -120,6 +172,12 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
+           <div className="mb-6">
+            <Button onClick={handleBuyCredits} disabled={buying}>
+                {buying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Buy 1 Credit ($1.00)
+            </Button>
+           </div>
           <h3 className="text-sm font-medium mb-4">Transaction History</h3>
           <div className="space-y-4">
             {profile?.creditTransactions?.length ? (
