@@ -45,6 +45,7 @@ export function BuyCreditsButton({ user, className, variant = "default", size = 
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         name: user.user_metadata?.full_name || (user as any).email,
                     },
+                    return_url: `${window.location.origin}/profile`,
                     metadata: {
                         userId: user.id,
                     }
