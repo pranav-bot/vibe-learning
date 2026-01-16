@@ -31,10 +31,14 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
   const supabase = createClient();
   
   // Initial state
-  const initialName = profile?.full_name ?? user.user_metadata?.full_name ?? '';
-  const initialAvatar = profile?.avatar_url ?? user.user_metadata?.avatar_url ?? '';
+  const initialName = profile?.full_name ?? (user.user_metadata?.full_name as string) ?? '';
+  const initialAvatar = profile?.avatar_url ?? (user.user_metadata?.avatar_url as string) ?? '';
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    full_name: string;
+    avatar_url: string;
+    email: string;
+  }>({
     full_name: initialName,
     avatar_url: initialAvatar,
     email: user.email ?? '',
@@ -56,7 +60,7 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
 
       const file = e.target.files[0];
       const fileExt = file.name.split('.').pop();
-      const fileName = `${(user as any).id}-${Math.random()}.${fileExt}`;
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -100,13 +104,6 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
     }
   };
 
-  // ...existing code...
-      setLoading(false);
-    }
-  };
-
-  const getInitials = (name: string) => {
-// ...existing code...
 
   const getInitials = (name: string) => {
     return name
