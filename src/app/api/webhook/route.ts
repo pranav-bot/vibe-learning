@@ -15,13 +15,14 @@ export const POST = Webhooks({
     console.log("Received onPaymentSucceeded webhook:", JSON.stringify(payload, null, 2));
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { customer, metadata, payment_id } = payload as any; 
+    const payloadData = payload as any;
     
     // Check various possible locations for metadata/customer
     // Dodo payload might be structured differently depending on the event version
     // Sometimes the resource is wrapped in `data`
-    // const actualMetadata = metadata || (payload as any).data?.metadata;
-    // const actualCustomer = customer || (payload as any).data?.customer;
+    const metadata = payloadData.metadata || payloadData.data?.metadata;
+    const customer = payloadData.customer || payloadData.data?.customer;
+    const paymentId = payloadData.payment_id || payloadData.data?.payment_id || "unknown_payment_id";
 
     if (!metadata?.userId && !customer?.email) {
       console.error("No userId or email found in payload", payload);
@@ -39,7 +40,7 @@ export const POST = Webhooks({
         : await db.profile.findUnique({ where: { email: email } });
 
       if (!profile) {
-        console.error("Profile not found for payment", payment_id);
+        console.error("Profile not found for payment", paymentId);
         return;
       }
 
@@ -60,7 +61,7 @@ export const POST = Webhooks({
           data: {
             amount: 1,
             type: "PURCHASE",
-            description: `Purchase via Dodo Payments (${payment_id})`,
+            description: `Purchase via Dodo Payments (${paymentId})`,
             profileId: profile.id,
           },
         }),
