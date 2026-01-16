@@ -1,5 +1,6 @@
 import { Webhooks } from "@dodopayments/nextjs";
 import { db } from "~/server/db";
+import { NextResponse } from "next/server";
 
 export const POST = Webhooks({
   webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
@@ -72,3 +73,7 @@ export const POST = Webhooks({
     }
   },
 });
+
+export function GET() {
+    return NextResponse.redirect(new URL("/profile", process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"));
+}
