@@ -38,5 +38,10 @@ export function GET(request: Request) {
         return NextResponse.redirect(new URL("/payment-processing", baseUrl));
     }
 
+    const paymentId = searchParams.get("payment_id");
+    if (paymentId) {
+        return NextResponse.redirect(new URL(`/api/credits/redeem?paymentId=${paymentId}`, baseUrl));
+    }
+
     return NextResponse.redirect(new URL("/profile", baseUrl));
 }
