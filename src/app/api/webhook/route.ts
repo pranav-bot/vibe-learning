@@ -1,6 +1,7 @@
 import { Webhooks } from "@dodopayments/nextjs";
 import { db } from "~/server/db";
 import { NextResponse } from "next/server";
+import { createClient } from "~/utils/supabase/server";
 
 export const POST = Webhooks({
   webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
@@ -13,61 +14,57 @@ export const POST = Webhooks({
 
   onPaymentSucceeded: async (payload) => {
     console.log("Received onPaymentSucceeded webhook:", JSON.stringify(payload, null, 2));
-    
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payloadData = payload as any;
     
-    // Check various possible locations for metadata/customer
-    // Dodo payload might be structured differently depending on the event version
-    // Sometimes the resource is wrapped in `data`
-    const metadata = payloadData.metadata || payloadData.data?.metadata;
-    const customer = payloadData.customer || payloadData.data?.customer;
-    const paymentId = payloadData.payment_id || payloadData.data?.payment_id || "unknown_payment_id";
+    // Extract payment ID from payload
+    const paymentId = payloadData.data?.payment_id ?? payloadData.payment_id;
 
-    if (!metadata?.userId) {
-      console.error("No userId found in metadata", payload);
+    if (!paymentId) {
+      console.error("No payment_id found in webhook payload");
       return;
     }
 
     try {
-      const userId = metadata?.userId;
-      const email = customer?.email;
-      console.log(`Processing payment for UserID from metadata: ${userId}, Email: ${email}`);
+      // 1. Identify the user using Supabase Auth (server-side)
+      const supabase = await createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-      let profile = null;
-
-      // 1. Try finding by ID (Most reliable if metadata exists)
-      if (userId) {
-         profile = await db.profile.findUnique({ where: { id: userId } });
-      }
-
-      // 2. Fallback to Email (If metadata is empty/stripped)
-      // We must use this because the Dodo payload sometimes strips metadata in test mode,
-      // and this is the only way to link the payment to the user account.
-      if (!profile && email) {
-      console.log("Metadata userId not found or profile missing. Falling back to email lookup.");
-         profile = await db.profile.findUnique({ where: { email: email } });
-      }
-
-      if (!profile) {
-        console.error("Profile not found for payment", paymentId);
+      if (authError || !user) {
+        console.error("No authenticated user found via Supabase Auth. Cannot process payment.", authError);
         return;
       }
 
+      console.log(`Processing payment ${paymentId} for authenticated UserID: ${user.id}`);
+
+      // 2. Find profile in Prisma
+      const profile = await db.profile.findUnique({
+        where: { id: user.id }
+      });
+
       if (!profile) {
-        console.error("Profile not found for payment", paymentId);
+        console.error(`Profile not found for authenticated user ${user.id}`);
         return;
       }
 
-      console.log(`Found profile: ${profile.id}. Adding credits...`);
+      // 3. Prevent duplicate processing
+      const description = `Purchase via Dodo Payments (${paymentId})`;
+      const existingTransaction = await db.creditTransaction.findFirst({
+        where: { description }
+      });
 
-      // Add credits (assuming 1 credit per purchase for now, or derive from amount)
-      // Since product is fixed price 100 ($1.00) for 1 credit.
-      // We can just add 1 credit.
+      if (existingTransaction) {
+        console.log(`Payment ${paymentId} already processed. Skipping.`);
+        return;
+      }
 
+      console.log(`Adding 1 credit to user ${user.id}...`);
+
+      // 4. Execute transaction
       const result = await db.$transaction([
         db.profile.update({
-          where: { id: profile.id },
+          where: { id: user.id },
           data: {
             credits: { increment: 1 },
           },
@@ -76,13 +73,13 @@ export const POST = Webhooks({
           data: {
             amount: 1,
             type: "PURCHASE",
-            description: `Purchase via Dodo Payments (${paymentId})`,
-            profileId: profile.id,
+            description: description,
+            profileId: user.id,
           },
         }),
       ]);
 
-      console.log(`Successfully added 1 credit to user ${profile.id}. New Balance details:`, result[0]);
+      console.log(`Successfully added 1 credit to user ${user.id}. Result:`, result);
     } catch (error) {
         console.error("Error processing webhook:", error);
         throw error; 
