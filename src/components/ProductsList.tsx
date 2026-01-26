@@ -9,6 +9,7 @@ import {
 import React from "react";
 import ProductCard from "./ProductCard";
 import { globalFetch } from "~/lib/globalFetch";
+import router from "next/router";
 
 const ProductsList = ({ products }: { products: ProductListResponse[] }) => {
   const handlePayClick = async (productId: string) => {
@@ -22,7 +23,11 @@ const ProductsList = ({ products }: { products: ProductListResponse[] }) => {
       }),
     });
     const body = (await response.json()) as PaymentCreateResponse;
-    console.log(body);
+    if(body.payment_link){
+        await router.push(body.payment_link);
+    } else {
+        console.error("No payment link found in response");
+    }
   };
   return (
     <div>
