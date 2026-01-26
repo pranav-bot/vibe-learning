@@ -2,7 +2,6 @@ import Link from "next/link";
 import SplitPanelWrapper from "~/components/SplitPanelWrapper";
 import FeatureShowcase from "~/components/FeatureShowcase";
 import { HydrateClient } from "~/trpc/server";
-import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { createClient } from "~/utils/supabase/server";
 import { Navbar } from "~/components/Navbar";

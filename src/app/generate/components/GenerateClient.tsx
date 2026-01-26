@@ -1,36 +1,95 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { 
   BookOpen,
   Send,
-  Sparkles,
   Zap,
 } from "lucide-react";
 import DifficultyDialog from "~/components/DifficultyDialog";
-import { BuyCreditsButton } from "~/components/BuyCreditsButton";
+import ProductCard from "~/components/ProductCard";
 import type { User } from "@supabase/supabase-js";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
+import { globalFetch } from "~/lib/globalFetch";
+import { toast } from "sonner";
 
 interface GenerateClientProps {
   user: User;
   credits: number;
 }
 
+// Minimal type definition to avoid importing from mjs if it causes issues
+interface Product {
+    product_id: string;
+    name: string;
+    description: string;
+    price: number;
+    currency: string;
+}
+
 export default function GenerateClient({ user, credits }: GenerateClientProps) {
   const [topicName, setTopicName] = useState('');
   const [difficulty, setDifficulty] = useState<"beginner" | "intermediate" | "advanced">("beginner");
   const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+        setLoadingProducts(true);
+        try {
+            const res = await globalFetch('/api/products');
+            const data = await res.json();
+            setProducts(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoadingProducts(false);
+        }
+    }
+    fetchProducts();
+  }, []);
+
+  const handlePayClick = async (product: Product) => {
+    try {
+        const response = await globalFetch("/api/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            productId: product.product_id,
+          }),
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = await response.json();
+        if (data.url) {
+            window.location.href = data.url;
+        } else if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+        } else if (data.payment_link) { // Start checking payment_link too just in case
+             window.location.href = data.payment_link;
+        }
+        else {
+            toast.error("Failed to create checkout session");
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Something went wrong");
+      }
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +121,34 @@ export default function GenerateClient({ user, credits }: GenerateClientProps) {
                             {credits} Credit{credits !== 1 ? 's' : ''} Available
                         </span>
                     </div>
-                     <BuyCreditsButton user={user} size="sm" variant="outline" />
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <Button size="sm" variant="outline">Buy Credits</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                             <DialogHeader>
+                                <DialogTitle className="text-center">Upgrade Plan</DialogTitle>
+                             </DialogHeader>
+                             <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto p-1">
+                                 {loadingProducts ? (
+                                     <div className="mx-auto py-8">Loading products...</div>
+                                 ) : products.length > 0 ? (
+                                    products.map(product => (
+                                        <ProductCard
+                                            key={product.product_id}
+                                            title={product.name}
+                                            description={product.description}
+                                            price={product.price}
+                                            currency={product.currency}
+                                            onPayClick={() => handlePayClick(product)}
+                                        />
+                                    ))
+                                 ) : (
+                                     <div className="text-center text-muted-foreground">No products available.</div>
+                                 )}
+                             </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
                 
                  {credits === 0 && (

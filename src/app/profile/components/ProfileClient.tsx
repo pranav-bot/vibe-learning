@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -14,11 +14,27 @@ import type { Profile, CreditTransaction } from "@prisma/client";
 import { createClient } from "~/utils/supabase/client";
 import { format } from "date-fns";
 import Link from "next/link";
-import { BuyCreditsButton } from "~/components/BuyCreditsButton";
+import ProductCard from "~/components/ProductCard";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
+import { globalFetch } from "~/lib/globalFetch";
 
 type ProfileWithTransactions = Profile & {
   creditTransactions: CreditTransaction[];
 };
+
+interface Product {
+    product_id: string;
+    name: string;
+    description: string;
+    price: number;
+    currency: string;
+}
 
 interface ProfileClientProps {
   user: User;
@@ -30,6 +46,53 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
   const [uploading, setUploading] = useState(false);
   const supabase = createClient();
   
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+        setLoadingProducts(true);
+        try {
+            const res = await globalFetch('/api/products');
+            const data = await res.json();
+            setProducts(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoadingProducts(false);
+        }
+    }
+    fetchProducts();
+  }, []);
+
+  const handlePayClick = async (product: Product) => {
+    try {
+        const response = await globalFetch("/api/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            productId: product.product_id,
+          }),
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = await response.json();
+        if (data.url) {
+            window.location.href = data.url;
+        } else if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+        } else if (data.payment_link) {
+             window.location.href = data.payment_link;
+        } else {
+            toast.error("Failed to create checkout session");
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Something went wrong");
+      }
+  };
+
   // Initial state
   const initialName = profile?.full_name ?? (user.user_metadata?.full_name as string) ?? '';
   const initialAvatar = profile?.avatar_url ?? (user.user_metadata?.avatar_url as string) ?? '';
@@ -127,7 +190,34 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
         </CardHeader>
         <CardContent>
            <div className="mb-6">
-            <BuyCreditsButton user={user} />
+             <Dialog>
+                <DialogTrigger asChild>
+                    <Button>Buy Credits</Button>
+                </DialogTrigger>
+                <DialogContent>
+                        <DialogHeader>
+                        <DialogTitle className="text-center">Upgrade Plan</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto p-1">
+                            {loadingProducts ? (
+                                <div className="mx-auto py-8">Loading products...</div>
+                            ) : products.length > 0 ? (
+                            products.map(product => (
+                                <ProductCard
+                                    key={product.product_id}
+                                    title={product.name}
+                                    description={product.description}
+                                    price={product.price}
+                                    currency={product.currency}
+                                    onPayClick={() => handlePayClick(product)}
+                                />
+                            ))
+                            ) : (
+                                <div className="text-center text-muted-foreground">No products available.</div>
+                            )}
+                        </div>
+                </DialogContent>
+            </Dialog>
            </div>
           <h3 className="text-sm font-medium mb-4">Transaction History</h3>
           <div className="space-y-4">

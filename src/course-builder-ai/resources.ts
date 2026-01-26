@@ -196,7 +196,7 @@ export { youtubeResources };
 import { google } from "@ai-sdk/google";
 import { youtubeResources } from "./resources";
 
-const model = google("gemini-1.5-flash");
+const model = google("gemini-2.5-flash");
 
 const result = await youtubeResources(
   "React hooks tutorial",
