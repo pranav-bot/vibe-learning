@@ -207,7 +207,7 @@ model Payment {
 
   productID     String
   productType   ProductType
-  currency      String   @default("INR")
+  country       String   @default("IN")
 
   status        PaymentStatus
 

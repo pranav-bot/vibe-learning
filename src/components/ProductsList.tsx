@@ -66,7 +66,9 @@ const ProductsList = ({ trigger, user }: { trigger?: React.ReactNode; user?: Use
         const res = await globalFetch("/api/products");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = await res.json();
-        setProducts(Array.isArray(data) ? data : []);
+        const allowedIds = ["pdt_0NW8bYSGgYoigI26uBq9b", "pdt_0NW8SzWqOgaUKUbv9QWbx"];
+        const allProducts = Array.isArray(data) ? data : [];
+        setProducts(allProducts.filter((p: Product) => allowedIds.includes(p.product_id)));
       } catch (error) {
         console.error(error);
       } finally {
