@@ -34,6 +34,7 @@ model Profile {
     roadmaps   Roadmap[]
     upvotes    Upvote[]
     creditTransactions CreditTransaction[]
+    payments   Payment[]    
 
     @@map("profiles")
 }
@@ -197,3 +198,36 @@ enum TransactionType {
     GENERATE_ROADMAP
     ADMIN_ADJUSTMENT
 }
+
+model Payment {
+  id            String   @id @default(cuid())
+  // IDs from Dodo
+  paymentId     String   @unique
+  provider      String   @default("dodo")
+
+  productID     String
+  productType   ProductType
+  currency      String   @default("INR")
+
+  status        PaymentStatus
+
+  // Who paid
+  profileId     String   @db.Uuid
+  profile       Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ProductType {
+    SINGLE_CREDIT
+    FIVE_CREDITS
+}
+
