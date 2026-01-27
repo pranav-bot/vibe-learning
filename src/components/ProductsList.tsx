@@ -14,8 +14,12 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { cn } from "~/lib/utils";
+import { countries } from "~/lib/countries";
 
 interface Product {
   product_id: string;
@@ -41,6 +45,7 @@ const ProductsList = ({ trigger, user }: { trigger?: React.ReactNode; user?: Use
     email: user?.email ?? "",
     country: "",
   });
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -180,14 +185,49 @@ const ProductsList = ({ trigger, user }: { trigger?: React.ReactNode; user?: Use
             </div>
             <div className="grid gap-2">
               <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                name="country"
-                value={billingDetails.country}
-                onChange={handleInputChange}
-                placeholder="Country Code (e.g. US, IN)"
-                required
-              />
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between"
+                  >
+                    {billingDetails.country
+                      ? countries.find((country) => country.code === billingDetails.country)?.name
+                      : "Select country..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Search country..." />
+                    <CommandList>
+                        <CommandEmpty>No country found.</CommandEmpty>
+                        <CommandGroup>
+                        {countries.map((country) => (
+                            <CommandItem
+                            key={country.code}
+                            value={country.name}
+                            onSelect={(currentValue) => {
+                                setBillingDetails((prev) => ({ ...prev, country: country.code }));
+                                setOpen(false);
+                            }}
+                            >
+                            <Check
+                                className={cn(
+                                "mr-2 h-4 w-4",
+                                billingDetails.country === country.code ? "opacity-100" : "opacity-0"
+                                )}
+                            />
+                            {country.name}
+                            </CommandItem>
+                        ))}
+                        </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="flex gap-2 justify-between mt-6">
