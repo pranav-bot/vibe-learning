@@ -56,7 +56,7 @@ export default function GenerateClient({ user: _user, credits }: GenerateClientP
                             {credits} Credit{credits !== 1 ? 's' : ''} Available
                         </span>
                     </div>
-                    <ProductsList user={user} trigger={<Button size="sm" variant="outline">Buy Credits</Button>} />
+                    <ProductsList user={_user} trigger={<Button size="sm" variant="outline">Buy Credits</Button>} />
                 </div>
                 
                  {credits === 0 && (
