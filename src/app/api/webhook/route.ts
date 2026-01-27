@@ -2,7 +2,7 @@ import { Webhooks } from "@dodopayments/nextjs";
 import { NextResponse } from "next/server";
 
 export const POST = Webhooks({
-  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY ?? '',
 
   onSubscriptionActive: async (payload) => {
     console.log("Received onSubscriptionActive webhook:", payload);
@@ -24,11 +24,9 @@ export const POST = Webhooks({
 export function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     // Assuming Dodo passes 'status' param in the return URL
-    const status = searchParams.get("status") || "succeeded"; 
+    const status = searchParams.get("status") ?? "succeeded"; 
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
 
     if (status === "failed") {
         return NextResponse.redirect(new URL("/payment-failed", baseUrl));
