@@ -1,8 +1,15 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { generateRoadmap } from "~/course-builder-ai/roadmap";
 import { youtubeResources } from "~/course-builder-ai/resources";
-import { generateProjectsForRoadmap, type Project } from "~/course-builder-ai/projects";
+import {
+  generateProjectsForRoadmap,
+  type Project,
+} from "~/course-builder-ai/projects";
 import llms from "~/lib/llms";
 import { db } from "~/server/db";
 import { createId } from "@paralleldrive/cuid2";
@@ -10,10 +17,12 @@ import { Prisma } from "@prisma/client";
 
 export const roadmapRouter = createTRPCRouter({
   generate: protectedProcedure
-    .input(z.object({ 
-      topic: z.string(),
-      difficulty: z.enum(["beginner", "intermediate", "advanced"])
-    }))
+    .input(
+      z.object({
+        topic: z.string(),
+        difficulty: z.enum(["beginner", "intermediate", "advanced"]),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       try {
         console.log(`🗺️ Starting roadmap generation for topic: ${input.topic}`);
@@ -37,133 +46,167 @@ export const roadmapRouter = createTRPCRouter({
         }
 
         if (profile.credits < 1) {
-          throw new Error("Insufficient credits. Please purchase more credits or wait for refill.");
+          throw new Error(
+            "Insufficient credits. Please purchase more credits or wait for refill.",
+          );
         }
-        
+
         // Try with gemini-2.5-flash first, then fallback to other models if needed
         let roadmap;
         try {
           const roadmapPromise = generateRoadmap(
             input.topic,
             input.difficulty,
-            llms.gemini("gemini-2.5-flash")
+            llms.gemini("gemini-2.5-flash"),
           );
-          
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Roadmap generation timed out after 2 minutes")), 120000)
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error("Roadmap generation timed out after 2 minutes"),
+                ),
+              120000,
+            ),
           );
-          
-          roadmap = await Promise.race([roadmapPromise, timeoutPromise]) as Awaited<typeof roadmapPromise>;
+
+          roadmap = (await Promise.race([
+            roadmapPromise,
+            timeoutPromise,
+          ])) as Awaited<typeof roadmapPromise>;
         } catch (geminiError) {
-          console.warn("⚠️ Gemini 2.5-flash model failed, trying fallback...", geminiError);
-          
+          console.warn(
+            "⚠️ Gemini 2.5-flash model failed, trying fallback...",
+            geminiError,
+          );
+
           // Fallback to gemini-2.5-flash
           try {
             roadmap = await generateRoadmap(
               input.topic,
               input.difficulty,
-              llms.gemini("gemini-2.5-flash")
+              llms.gemini("gemini-2.5-flash"),
             );
           } catch (fallbackError) {
             console.error("❌ Fallback model also failed:", fallbackError);
             throw geminiError; // Throw original error
           }
         }
-        
+
         console.log(`✅ Roadmap generated successfully`);
-        console.log(`📚 Generated ${Object.keys(roadmap.topics).length} topics`);
+        console.log(
+          `📚 Generated ${Object.keys(roadmap.topics).length} topics`,
+        );
         console.log(`🗺️ Roadmap output:`, JSON.stringify(roadmap, null, 2));
 
         // NOTE: Credit deduction moved to save procedure to link transaction with roadmap ID
-        
+
         return {
           success: true,
-          data: roadmap
+          data: roadmap,
         };
-        
       } catch (error) {
         console.error("❌ Error generating roadmap:", error);
-        
+
         // Provide more detailed error information
         if (error instanceof Error) {
           if (error.message.includes("Roadmap generation timed out")) {
-            throw new Error("Roadmap generation took too long and was cancelled. Please try again with a simpler topic.");
+            throw new Error(
+              "Roadmap generation took too long and was cancelled. Please try again with a simpler topic.",
+            );
           }
           if (error.message.includes("property is not defined")) {
             throw new Error("AI model configuration error. Please try again.");
           }
         }
-        
-        throw new Error(`Failed to generate roadmap: ${error instanceof Error ? error.message : String(error)}`);
+
+        throw new Error(
+          `Failed to generate roadmap: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   youtubeResources: publicProcedure
-    .input(z.object({
-      topic: z.string(),
-      difficulty: z.enum(["beginner", "intermediate", "advanced"]),
-      topicSummary: z.string()
-    }))
+    .input(
+      z.object({
+        topic: z.string(),
+        difficulty: z.enum(["beginner", "intermediate", "advanced"]),
+        topicSummary: z.string(),
+      }),
+    )
     .mutation(async ({ input }) => {
       try {
-        console.log(`🎥 Starting YouTube resources fetch for topic: ${input.topic}`);
+        console.log(
+          `🎥 Starting YouTube resources fetch for topic: ${input.topic}`,
+        );
         console.log(`🎚️ Difficulty: ${input.difficulty}`);
-        
+
         // Use gemini model for resource selection
         const model = llms.gemini("gemini-2.5-flash");
-        
+
         const resources = await youtubeResources(
           input.topic,
           input.difficulty,
           input.topicSummary,
-          model
+          model,
         );
-        
+
         console.log(`✅ YouTube resources fetched successfully`);
-        console.log(`📺 Found ${resources.selectedVideos.length} relevant videos`);
-        
+        console.log(
+          `📺 Found ${resources.selectedVideos.length} relevant videos`,
+        );
+
         return {
           success: true,
-          data: resources
+          data: resources,
         };
-        
       } catch (error) {
         console.error("❌ Error fetching YouTube resources:", error);
-        
+
         if (error instanceof Error) {
           if (error.message.includes("YouTube API key not found")) {
-            throw new Error("YouTube API is not configured. Please contact the administrator.");
+            throw new Error(
+              "YouTube API is not configured. Please contact the administrator.",
+            );
           }
           if (error.message.includes("No YouTube videos found")) {
-            throw new Error("No relevant videos found for this topic. Try a different search term.");
+            throw new Error(
+              "No relevant videos found for this topic. Try a different search term.",
+            );
           }
         }
-        
-        throw new Error(`Failed to fetch YouTube resources: ${error instanceof Error ? error.message : String(error)}`);
+
+        throw new Error(
+          `Failed to fetch YouTube resources: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   save: protectedProcedure
-    .input(z.object({
-      roadmap: z.object({
-        title: z.string(),
-        description: z.string(),
-        difficulty: z.enum(["beginner", "intermediate", "advanced"]),
-        rootTopics: z.array(z.string()),
-        topics: z.array(z.object({
-          id: z.string(),
+    .input(
+      z.object({
+        roadmap: z.object({
           title: z.string(),
-          summary: z.string(),
-          level: z.number(),
-          parentId: z.string().optional(),
-          children: z.array(z.string())
-        }))
-      })
-    }))
+          description: z.string(),
+          difficulty: z.enum(["beginner", "intermediate", "advanced"]),
+          rootTopics: z.array(z.string()),
+          topics: z.array(
+            z.object({
+              id: z.string(),
+              title: z.string(),
+              summary: z.string(),
+              level: z.number(),
+              parentId: z.string().optional(),
+              children: z.array(z.string()),
+            }),
+          ),
+        }),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       try {
         console.log(`💾 Starting roadmap save for: ${input.roadmap.title}`);
-        console.log(`👤 User ID: ${ctx.user?.id ?? 'anonymous'}`);
+        console.log(`👤 User ID: ${ctx.user?.id ?? "anonymous"}`);
 
         // Check credits again before saving/deducting
         const profile = await ctx.db.profile.findUnique({
@@ -172,23 +215,25 @@ export const roadmapRouter = createTRPCRouter({
         });
 
         if (!profile || profile.credits < 1) {
-           throw new Error("Insufficient credits. Please purchase more credits.");
+          throw new Error(
+            "Insufficient credits. Please purchase more credits.",
+          );
         }
-        
+
         // Regenerate topic IDs to ensure global uniqueness and avoid collisions
         // Map to store oldId -> newId mapping
         const idMap = new Map<string, string>();
-        
+
         // First pass: Generate new IDs for all topics
-        input.roadmap.topics.forEach(topic => {
+        input.roadmap.topics.forEach((topic) => {
           idMap.set(topic.id, createId());
         });
-        
+
         // Second pass: Create new topic objects with updated IDs and parentIds
-        const newTopics = input.roadmap.topics.map(topic => ({
+        const newTopics = input.roadmap.topics.map((topic) => ({
           ...topic,
           id: idMap.get(topic.id)!, // Should always exist
-          parentId: topic.parentId ? idMap.get(topic.parentId) : null
+          parentId: topic.parentId ? idMap.get(topic.parentId) : null,
         }));
 
         // Create the roadmap record
@@ -199,21 +244,21 @@ export const roadmapRouter = createTRPCRouter({
             difficulty: input.roadmap.difficulty,
             profileId: ctx.user?.id ?? null, // Use the authenticated user ID
             topics: {
-              create: newTopics.map(topic => ({
+              create: newTopics.map((topic) => ({
                 id: topic.id,
                 title: topic.title,
                 summary: topic.summary,
                 level: topic.level,
-                parentId: topic.parentId || null
-              }))
-            }
+                parentId: topic.parentId || null,
+              })),
+            },
           },
           include: {
             topics: true,
-            profile: true
-          }
+            profile: true,
+          },
         });
-        
+
         // Deduct credit and record transaction linked to the new roadmap
         await ctx.db.$transaction([
           ctx.db.profile.update({
@@ -231,9 +276,11 @@ export const roadmapRouter = createTRPCRouter({
           }),
         ]);
 
-        console.log(`✅ Roadmap saved and credits deducted. ID: ${savedRoadmap.id}`);
+        console.log(
+          `✅ Roadmap saved and credits deducted. ID: ${savedRoadmap.id}`,
+        );
         console.log(`📚 Saved ${savedRoadmap.topics.length} topics`);
-        
+
         return {
           success: true,
           data: {
@@ -242,28 +289,31 @@ export const roadmapRouter = createTRPCRouter({
             description: savedRoadmap.description,
             difficulty: savedRoadmap.difficulty,
             createdAt: savedRoadmap.createdAt,
-            topicCount: savedRoadmap.topics.length
-          }
+            topicCount: savedRoadmap.topics.length,
+          },
         };
-        
       } catch (error) {
         console.error("❌ Error saving roadmap:", error);
-        
+
         if (error instanceof Error) {
           if (error.message.includes("Unique constraint")) {
             // Check which constraint failed
             if (error.message.includes("roadmap_pkey")) {
-               throw new Error("A roadmap with this ID already exists.");
+              throw new Error("A roadmap with this ID already exists.");
             }
-             // Fallback for other unique constraints, though with unique Topic IDs this should be rare/impossible for topics
-             throw new Error("A database constraint was violated. Please try again.");
+            // Fallback for other unique constraints, though with unique Topic IDs this should be rare/impossible for topics
+            throw new Error(
+              "A database constraint was violated. Please try again.",
+            );
           }
           if (error.message.includes("Foreign key constraint")) {
             throw new Error("Invalid profile ID provided.");
           }
         }
-        
-        throw new Error(`Failed to save roadmap: ${error instanceof Error ? error.message : String(error)}`);
+
+        throw new Error(
+          `Failed to save roadmap: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
@@ -272,30 +322,32 @@ export const roadmapRouter = createTRPCRouter({
     .query(async ({ ctx }) => {
       try {
         const profileId = ctx.user?.id ?? null;
-        console.log(`📚 Retrieving roadmaps for profile: ${profileId ?? 'anonymous'}`);
-        
+        console.log(
+          `📚 Retrieving roadmaps for profile: ${profileId ?? "anonymous"}`,
+        );
+
         const roadmaps = await db.roadmap.findMany({
           where: {
-            profileId: profileId
+            profileId: profileId,
           },
           include: {
             topics: {
               orderBy: {
-                level: 'asc'
-              }
+                level: "asc",
+              },
             },
-            profile: true
+            profile: true,
           },
           orderBy: {
-            createdAt: 'desc'
-          }
+            createdAt: "desc",
+          },
         });
-        
+
         console.log(`✅ Found ${roadmaps.length} roadmaps`);
-        
+
         return {
           success: true,
-          data: roadmaps.map(roadmap => ({
+          data: roadmaps.map((roadmap) => ({
             id: roadmap.id,
             title: roadmap.title,
             description: roadmap.description,
@@ -304,139 +356,151 @@ export const roadmapRouter = createTRPCRouter({
             createdAt: roadmap.createdAt,
             updatedAt: roadmap.updatedAt,
             topicCount: roadmap.topics.length,
-            topics: roadmap.topics.map(topic => ({
+            topics: roadmap.topics.map((topic) => ({
               id: topic.id,
               title: topic.title,
               summary: topic.summary,
               level: topic.level,
               parentId: topic.parentId,
-              children: [] // We'll reconstruct this from the parent-child relationships
-            }))
-          }))
+              children: [], // We'll reconstruct this from the parent-child relationships
+            })),
+          })),
         };
-        
       } catch (error) {
         console.error("❌ Error retrieving roadmaps:", error);
-        throw new Error(`Failed to retrieve roadmaps: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to retrieve roadmaps: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   getRoadmapById: publicProcedure
-    .input(z.object({
-      id: z.string()
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+      }),
+    )
     .query(async ({ input }) => {
       try {
         console.log(`🔍 Retrieving roadmap with ID: ${input.id}`);
-        
+
         const roadmap = await db.roadmap.findUnique({
           where: {
-            id: input.id
+            id: input.id,
           },
           include: {
             topics: {
               orderBy: {
-                level: 'asc'
-              }
+                level: "asc",
+              },
             },
-            profile: true
-          }
+            profile: true,
+          },
         });
-        
+
         if (!roadmap) {
           throw new Error("Roadmap not found");
         }
-        
+
         // Reconstruct the roadmap format with children relationships
-        const reconstructedTopics = roadmap.topics.map(topic => ({
+        const reconstructedTopics = roadmap.topics.map((topic) => ({
           id: topic.id,
           title: topic.title,
           summary: topic.summary,
           level: topic.level,
           parentId: topic.parentId,
           children: roadmap.topics
-            .filter(t => t.parentId === topic.id)
-            .map(t => t.id)
+            .filter((t) => t.parentId === topic.id)
+            .map((t) => t.id),
         }));
-        
+
         const rootTopics = reconstructedTopics
-          .filter(topic => topic.parentId === null)
-          .map(topic => topic.id);
-        
+          .filter((topic) => topic.parentId === null)
+          .map((topic) => topic.id);
+
         const reconstructedRoadmap = {
           id: roadmap.id,
           title: roadmap.title,
           description: roadmap.description,
-          difficulty: roadmap.difficulty as "beginner" | "intermediate" | "advanced",
+          difficulty: roadmap.difficulty as
+            | "beginner"
+            | "intermediate"
+            | "advanced",
           isPublic: roadmap.isPublic,
           rootTopics: rootTopics,
-          topics: reconstructedTopics
+          topics: reconstructedTopics,
         };
-        
+
         console.log(`✅ Roadmap retrieved successfully`);
-        
+
         return {
           success: true,
           data: {
             id: roadmap.id,
             createdAt: roadmap.createdAt,
             updatedAt: roadmap.updatedAt,
-            roadmap: reconstructedRoadmap
-          }
+            roadmap: reconstructedRoadmap,
+          },
         };
-        
       } catch (error) {
         console.error("❌ Error retrieving roadmap:", error);
-        throw new Error(`Failed to retrieve roadmap: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to retrieve roadmap: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   delete: publicProcedure
-    .input(z.object({
-      id: z.string(),
-      profileId: z.string().optional() // Optional profile ID for authorization
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        profileId: z.string().optional(), // Optional profile ID for authorization
+      }),
+    )
     .mutation(async ({ input }) => {
       try {
         console.log(`🗑️ Deleting roadmap with ID: ${input.id}`);
-        
+
         // First check if the roadmap exists and belongs to the user (if profileId provided)
         const existingRoadmap = await db.roadmap.findUnique({
           where: {
-            id: input.id
+            id: input.id,
           },
           include: {
-            topics: true
-          }
+            topics: true,
+          },
         });
-        
+
         if (!existingRoadmap) {
           throw new Error("Roadmap not found");
         }
-        
+
         // Check authorization if profileId is provided
         if (input.profileId && existingRoadmap.profileId !== input.profileId) {
-          throw new Error("Unauthorized: You can only delete your own roadmaps");
+          throw new Error(
+            "Unauthorized: You can only delete your own roadmaps",
+          );
         }
-        
+
         // Delete the roadmap (topics will be deleted due to cascade)
         await db.roadmap.delete({
           where: {
-            id: input.id
-          }
+            id: input.id,
+          },
         });
-        
+
         console.log(`✅ Roadmap deleted successfully`);
-        console.log(`🗑️ Deleted ${existingRoadmap.topics.length} associated topics`);
-        
+        console.log(
+          `🗑️ Deleted ${existingRoadmap.topics.length} associated topics`,
+        );
+
         return {
           success: true,
-          message: "Roadmap deleted successfully"
+          message: "Roadmap deleted successfully",
         };
-        
       } catch (error) {
         console.error("❌ Error deleting roadmap:", error);
-        
+
         if (error instanceof Error) {
           if (error.message.includes("not found")) {
             throw new Error("Roadmap not found or already deleted");
@@ -445,78 +509,85 @@ export const roadmapRouter = createTRPCRouter({
             throw error; // Re-throw authorization errors as-is
           }
         }
-        
-        throw new Error(`Failed to delete roadmap: ${error instanceof Error ? error.message : String(error)}`);
+
+        throw new Error(
+          `Failed to delete roadmap: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   saveYoutubeResources: publicProcedure
-    .input(z.object({
-      topicId: z.string(),
-      resources: z.array(z.object({
-        videoId: z.string(),
-        title: z.string(),
-        description: z.string(),
-        channelTitle: z.string(),
-        publishedAt: z.string(),
-        thumbnailUrl: z.string(),
-        relevanceScore: z.number().min(1).max(10),
-        relevanceReason: z.string(),
-        url: z.string()
-      }))
-    }))
+    .input(
+      z.object({
+        topicId: z.string(),
+        resources: z.array(
+          z.object({
+            videoId: z.string(),
+            title: z.string(),
+            description: z.string(),
+            channelTitle: z.string(),
+            publishedAt: z.string(),
+            thumbnailUrl: z.string(),
+            relevanceScore: z.number().min(1).max(10),
+            relevanceReason: z.string(),
+            url: z.string(),
+          }),
+        ),
+      }),
+    )
     .mutation(async ({ input }) => {
       try {
         console.log(`💾 Saving YouTube resources for topic: ${input.topicId}`);
-        console.log(`📺 Number of resources to save: ${input.resources.length}`);
-        
+        console.log(
+          `📺 Number of resources to save: ${input.resources.length}`,
+        );
+
         // First, verify the topic exists
         const topic = await db.topic.findUnique({
-          where: { id: input.topicId }
+          where: { id: input.topicId },
         });
-        
+
         if (!topic) {
           throw new Error("Topic not found");
         }
-        
+
         // Delete existing YouTube resources for this topic to avoid duplicates
         await db.resource.deleteMany({
           where: {
             topicId: input.topicId,
-            type: 'YOUTUBE_VIDEO'
-          }
+            type: "YOUTUBE_VIDEO",
+          },
         });
-        
+
         // Create new resources
         const savedResources = await db.resource.createMany({
-          data: input.resources.map(resource => ({
+          data: input.resources.map((resource) => ({
             title: resource.title,
             description: resource.description,
             url: resource.url,
-            type: 'YOUTUBE_VIDEO' as const,
+            type: "YOUTUBE_VIDEO" as const,
             relevanceScore: resource.relevanceScore,
             relevanceReason: resource.relevanceReason,
             thumbnailUrl: resource.thumbnailUrl,
             channelTitle: resource.channelTitle,
             publishedAt: new Date(resource.publishedAt),
-            topicId: input.topicId
-          }))
+            topicId: input.topicId,
+          })),
         });
-        
+
         console.log(`✅ YouTube resources saved successfully`);
         console.log(`📺 Saved ${savedResources.count} resources`);
-        
+
         return {
           success: true,
           data: {
             savedCount: savedResources.count,
-            topicId: input.topicId
-          }
+            topicId: input.topicId,
+          },
         };
-        
       } catch (error) {
         console.error("❌ Error saving YouTube resources:", error);
-        
+
         if (error instanceof Error) {
           if (error.message.includes("Topic not found")) {
             throw new Error("The specified topic does not exist");
@@ -525,162 +596,191 @@ export const roadmapRouter = createTRPCRouter({
             throw new Error("Invalid topic ID provided");
           }
         }
-        
-        throw new Error(`Failed to save YouTube resources: ${error instanceof Error ? error.message : String(error)}`);
+
+        throw new Error(
+          `Failed to save YouTube resources: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   getTopicResources: publicProcedure
-    .input(z.object({
-      topicId: z.string(),
-      type: z.enum(['YOUTUBE_VIDEO', 'ARTICLE', 'DOCUMENTATION', 'TUTORIAL', 'COURSE', 'BOOK', 'PODCAST', 'EXERCISE', 'QUIZ', 'OTHER']).optional()
-    }))
+    .input(
+      z.object({
+        topicId: z.string(),
+        type: z
+          .enum([
+            "YOUTUBE_VIDEO",
+            "ARTICLE",
+            "DOCUMENTATION",
+            "TUTORIAL",
+            "COURSE",
+            "BOOK",
+            "PODCAST",
+            "EXERCISE",
+            "QUIZ",
+            "OTHER",
+          ])
+          .optional(),
+      }),
+    )
     .query(async ({ input }) => {
       try {
         console.log(`📚 Retrieving resources for topic: ${input.topicId}`);
         if (input.type) {
           console.log(`🔍 Filtering by type: ${input.type}`);
         }
-        
+
         const resources = await db.resource.findMany({
           where: {
             topicId: input.topicId,
-            ...(input.type && { type: input.type })
+            ...(input.type && { type: input.type }),
           },
-          orderBy: [
-            { relevanceScore: 'desc' },
-            { createdAt: 'desc' }
-          ]
+          orderBy: [{ relevanceScore: "desc" }, { createdAt: "desc" }],
         });
-        
+
         console.log(`✅ Found ${resources.length} resources`);
-        
+
         return {
           success: true,
-          data: resources
+          data: resources,
         };
-        
       } catch (error) {
         console.error("❌ Error retrieving topic resources:", error);
-        throw new Error(`Failed to retrieve topic resources: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to retrieve topic resources: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   generateProjects: publicProcedure
-    .input(z.object({
-      roadmapId: z.string(),
-      projectCount: z.number().min(1).max(20).default(6)
-    }))
+    .input(
+      z.object({
+        roadmapId: z.string(),
+        projectCount: z.number().min(1).max(20).default(6),
+      }),
+    )
     .mutation(async ({ input }) => {
       try {
         console.log(`🚀 Generating projects for roadmap: ${input.roadmapId}`);
         console.log(`📊 Project count requested: ${input.projectCount}`);
-        
+
         // First, get the roadmap with its topics
         const roadmap = await db.roadmap.findUnique({
           where: { id: input.roadmapId },
           include: {
             topics: {
-              orderBy: { level: 'asc' }
-            }
-          }
+              orderBy: { level: "asc" },
+            },
+          },
         });
-        
+
         if (!roadmap) {
           throw new Error("Roadmap not found");
         }
-        
+
         // Convert the database roadmap to the format expected by generateProjectsForRoadmap
         const roadmapForGeneration = {
           title: roadmap.title,
           description: roadmap.description,
-          difficulty: roadmap.difficulty as "beginner" | "intermediate" | "advanced",
+          difficulty: roadmap.difficulty as
+            | "beginner"
+            | "intermediate"
+            | "advanced",
           rootTopics: roadmap.topics
-            .filter(topic => topic.parentId === null)
-            .map(topic => topic.id),
-          topics: roadmap.topics.map(topic => ({
+            .filter((topic) => topic.parentId === null)
+            .map((topic) => topic.id),
+          topics: roadmap.topics.map((topic) => ({
             id: topic.id,
             title: topic.title,
             summary: topic.summary,
             level: topic.level,
             parentId: topic.parentId ?? undefined,
             children: roadmap.topics
-              .filter(t => t.parentId === topic.id)
-              .map(t => t.id)
-          }))
+              .filter((t) => t.parentId === topic.id)
+              .map((t) => t.id),
+          })),
         };
-        
+
         // Generate projects using AI
         const model = llms.gemini("gemini-2.5-flash");
         const projectList = await generateProjectsForRoadmap(
           roadmapForGeneration,
           model,
-          input.projectCount
+          input.projectCount,
         );
-        
-        console.log(`✅ Generated ${projectList.projects.length} projects successfully`);
-        
+
+        console.log(
+          `✅ Generated ${projectList.projects.length} projects successfully`,
+        );
+
         return {
           success: true,
-          data: projectList.projects
+          data: projectList.projects,
         };
-        
       } catch (error) {
         console.error("❌ Error generating projects:", error);
-        
+
         if (error instanceof Error) {
           if (error.message.includes("Roadmap not found")) {
             throw new Error("The specified roadmap does not exist");
           }
         }
-        
-        throw new Error(`Failed to generate projects: ${error instanceof Error ? error.message : String(error)}`);
+
+        throw new Error(
+          `Failed to generate projects: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   saveProjects: publicProcedure
-    .input(z.object({
-      roadmapId: z.string(),
-      projects: z.array(z.object({
-        title: z.string(),
-        description: z.string(),
-        difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]),
-        estimatedTime: z.string(),
-        technologies: z.array(z.string()),
-        relatedTopicIds: z.array(z.string()),
-        deliverables: z.array(z.string())
-      }))
-    }))
+    .input(
+      z.object({
+        roadmapId: z.string(),
+        projects: z.array(
+          z.object({
+            title: z.string(),
+            description: z.string(),
+            difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]),
+            estimatedTime: z.string(),
+            technologies: z.array(z.string()),
+            relatedTopicIds: z.array(z.string()),
+            deliverables: z.array(z.string()),
+          }),
+        ),
+      }),
+    )
     .mutation(async ({ input }) => {
       try {
         console.log(`💾 Saving projects for roadmap: ${input.roadmapId}`);
         console.log(`📝 Number of projects to save: ${input.projects.length}`);
-        
+
         // First, verify the roadmap exists
         const roadmap = await db.roadmap.findUnique({
           where: { id: input.roadmapId },
-          include: { topics: true }
+          include: { topics: true },
         });
-        
+
         if (!roadmap) {
           throw new Error("Roadmap not found");
         }
-        
+
         // Verify all related topic IDs exist in the roadmap
-        const roadmapTopicIds = new Set(roadmap.topics.map(t => t.id));
+        const roadmapTopicIds = new Set(roadmap.topics.map((t) => t.id));
         for (const project of input.projects) {
           for (const topicId of project.relatedTopicIds) {
             if (!roadmapTopicIds.has(topicId)) {
-              throw new Error(`Topic ID ${topicId} not found in roadmap ${input.roadmapId}`);
+              throw new Error(
+                `Topic ID ${topicId} not found in roadmap ${input.roadmapId}`,
+              );
             }
           }
         }
-        
+
         // Delete existing projects for this roadmap to avoid duplicates
         await db.project.deleteMany({
-          where: { roadmapId: input.roadmapId }
+          where: { roadmapId: input.roadmapId },
         });
-        
+
         // Create new projects and their topic relationships
         const savedProjects = [];
         for (const project of input.projects) {
@@ -696,31 +796,31 @@ export const roadmapRouter = createTRPCRouter({
               deliverables: project.deliverables,
               roadmapId: input.roadmapId,
               relatedTopics: {
-                create: project.relatedTopicIds.map(topicId => ({
-                  topicId: topicId
-                }))
-              }
+                create: project.relatedTopicIds.map((topicId) => ({
+                  topicId: topicId,
+                })),
+              },
             },
             include: {
               relatedTopics: {
                 include: {
-                  topic: true
-                }
-              }
-            }
+                  topic: true,
+                },
+              },
+            },
           });
           savedProjects.push(savedProject);
         }
-        
+
         console.log(`✅ Projects saved successfully`);
         console.log(`📝 Saved ${savedProjects.length} projects`);
-        
+
         return {
           success: true,
           data: {
             savedCount: savedProjects.length,
             roadmapId: input.roadmapId,
-            projects: savedProjects.map(p => ({
+            projects: savedProjects.map((p) => ({
               id: p.id,
               title: p.title,
               description: p.description,
@@ -728,41 +828,47 @@ export const roadmapRouter = createTRPCRouter({
               estimatedTime: p.estimatedTime,
               technologies: p.technologies,
               deliverables: p.deliverables,
-              relatedTopics: p.relatedTopics.map(rt => ({
+              relatedTopics: p.relatedTopics.map((rt) => ({
                 id: rt.topic.id,
-                title: rt.topic.title
-              }))
-            }))
-          }
+                title: rt.topic.title,
+              })),
+            })),
+          },
         };
-        
       } catch (error) {
         console.error("❌ Error saving projects:", error);
-        
+
         if (error instanceof Error) {
           if (error.message.includes("Roadmap not found")) {
             throw new Error("The specified roadmap does not exist");
           }
-          if (error.message.includes("Topic ID") && error.message.includes("not found")) {
+          if (
+            error.message.includes("Topic ID") &&
+            error.message.includes("not found")
+          ) {
             throw error; // Re-throw topic validation errors as-is
           }
           if (error.message.includes("Foreign key constraint")) {
             throw new Error("Invalid roadmap or topic ID provided");
           }
         }
-        
-        throw new Error(`Failed to save projects: ${error instanceof Error ? error.message : String(error)}`);
+
+        throw new Error(
+          `Failed to save projects: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   getProjects: publicProcedure
-    .input(z.object({
-      roadmapId: z.string()
-    }))
+    .input(
+      z.object({
+        roadmapId: z.string(),
+      }),
+    )
     .query(async ({ input }) => {
       try {
         console.log(`📋 Retrieving projects for roadmap: ${input.roadmapId}`);
-        
+
         const projects = await db.project.findMany({
           where: { roadmapId: input.roadmapId },
           include: {
@@ -773,27 +879,27 @@ export const roadmapRouter = createTRPCRouter({
                     id: true,
                     title: true,
                     summary: true,
-                    level: true
-                  }
-                }
-              }
+                    level: true,
+                  },
+                },
+              },
             },
             roadmap: {
               select: {
                 id: true,
                 title: true,
-                difficulty: true
-              }
-            }
+                difficulty: true,
+              },
+            },
           },
           orderBy: {
-            createdAt: 'asc'
-          }
+            createdAt: "asc",
+          },
         });
-        
+
         console.log(`✅ Found ${projects.length} projects`);
-        
-        const formattedProjects = projects.map(project => ({
+
+        const formattedProjects = projects.map((project) => ({
           id: project.id,
           title: project.title,
           description: project.description,
@@ -803,35 +909,38 @@ export const roadmapRouter = createTRPCRouter({
           deliverables: project.deliverables,
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
-          relatedTopics: project.relatedTopics.map(rt => ({
+          relatedTopics: project.relatedTopics.map((rt) => ({
             id: rt.topic.id,
             title: rt.topic.title,
             summary: rt.topic.summary,
-            level: rt.topic.level
+            level: rt.topic.level,
           })),
-          roadmap: project.roadmap
+          roadmap: project.roadmap,
         }));
-        
+
         return {
           success: true,
           data: {
             roadmapId: input.roadmapId,
             projects: formattedProjects,
-            totalCount: formattedProjects.length
-          }
+            totalCount: formattedProjects.length,
+          },
         };
-        
       } catch (error) {
         console.error("❌ Error retrieving projects:", error);
-        throw new Error(`Failed to retrieve projects: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to retrieve projects: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   toggleVisibility: publicProcedure
-    .input(z.object({
-      id: z.string(),
-      isPublic: z.boolean()
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        isPublic: z.boolean(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       try {
         if (!ctx.user?.id) {
@@ -857,19 +966,22 @@ export const roadmapRouter = createTRPCRouter({
 
         return {
           success: true,
-          data: updatedRoadmap
+          data: updatedRoadmap,
         };
-
       } catch (error) {
         console.error("❌ Error toggling visibility:", error);
-        throw new Error(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   toggleUpvote: protectedProcedure
-    .input(z.object({
-      roadmapId: z.string()
-    }))
+    .input(
+      z.object({
+        roadmapId: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       try {
         if (!ctx.user?.id) {
@@ -880,41 +992,43 @@ export const roadmapRouter = createTRPCRouter({
         const roadmapId = input.roadmapId;
 
         const roadmap = await db.roadmap.findUnique({
-          where: { id: roadmapId }
+          where: { id: roadmapId },
         });
 
         if (!roadmap) {
           throw new Error("Roadmap not found");
         }
-
-        // Check if user already upvoted
-        const existingUpvote = await db.upvote.findUnique({
-          where: {
-            profileId_roadmapId: {
-              profileId: userId,
-              roadmapId: roadmapId
-            }
-          }
-        });
-
         try {
-          await db.upvote.create({
-            data: {
-              profileId: userId,
-              roadmapId: roadmapId
-            },
+          await db.$transaction(async (tx) => {
+            await tx.upvote.create({
+              data: { profileId: userId, roadmapId },
+            });
+
+            await tx.roadmap.update({
+              where: { id: roadmapId },
+              data: { upvotesCount: { increment: 1 } },
+            });
           });
           return { success: true, upvoted: true };
-
         } catch (error) {
-          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-            await db.upvote.delete({
-              where: {
-                profileId_roadmapId: {
-                  profileId: userId,
-                  roadmapId: roadmapId
-                }
-              }
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            await db.$transaction(async (tx) => {
+              await tx.upvote.delete({
+                where: {
+                  profileId_roadmapId: {
+                    profileId: userId,
+                    roadmapId,
+                  },
+                },
+              });
+
+              await tx.roadmap.update({
+                where: { id: roadmapId },
+                data: { upvotesCount: { decrement: 1 } },
+              });
             });
             return { success: true, upvoted: false };
           }
@@ -922,61 +1036,67 @@ export const roadmapRouter = createTRPCRouter({
         }
       } catch (error) {
         console.error("❌ Error toggling upvote:", error);
-        throw new Error(`Failed to toggle upvote: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to toggle upvote: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   getTrending: publicProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(50).default(20)
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(20),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       try {
         console.log(`📈 Retrieving trending roadmaps`);
-        
+
         const roadmaps = await db.roadmap.findMany({
           where: {
-            isPublic: true
+            isPublic: true,
           },
           include: {
             topics: {
-              select: { id: true }
+              select: { id: true },
             },
             profile: {
-                select: {
-                    id: true,
-                    username: true,
-                    full_name: true,
-                    avatar_url: true,
-                }
+              select: {
+                id: true,
+                username: true,
+                full_name: true,
+                avatar_url: true,
+              },
             },
             _count: {
               select: {
-                upvotes: true
-              }
+                upvotes: true,
+              },
             },
-            upvotes: ctx.user?.id ? {
-                where: {
-                    profileId: ctx.user.id
-                },
-                select: {
-                    id: true
+            upvotes: ctx.user?.id
+              ? {
+                  where: {
+                    profileId: ctx.user.id,
+                  },
+                  select: {
+                    id: true,
+                  },
                 }
-            } : false
+              : false,
           },
           orderBy: {
             upvotes: {
-              _count: 'desc'
-            }
+              _count: "desc",
+            },
           },
-          take: input.limit
+          take: input.limit,
         });
-        
+
         console.log(`✅ Found ${roadmaps.length} trending roadmaps`);
-        
+
         return {
           success: true,
-          data: roadmaps.map(roadmap => ({
+          data: roadmaps.map((roadmap) => ({
             id: roadmap.id,
             title: roadmap.title,
             description: roadmap.description,
@@ -985,28 +1105,31 @@ export const roadmapRouter = createTRPCRouter({
             updatedAt: roadmap.updatedAt,
             topicCount: roadmap.topics.length,
             creator: {
-                ...roadmap.profile,
-                name: roadmap.profile?.username ?? 'Anonymous'
+              ...roadmap.profile,
+              name: roadmap.profile?.username ?? "Anonymous",
             },
             upvoteCount: roadmap._count.upvotes,
-            isUpvoted: roadmap.upvotes ? roadmap.upvotes.length > 0 : false
-          }))
+            isUpvoted: roadmap.upvotes ? roadmap.upvotes.length > 0 : false,
+          })),
         };
-        
       } catch (error) {
         console.error("❌ Error retrieving trending roadmaps:", error);
-        throw new Error(`Failed to retrieve trending roadmaps: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to retrieve trending roadmaps: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 
   getPublicUserRoadmaps: publicProcedure
-    .input(z.object({
-      userId: z.string()
-    }))
+    .input(
+      z.object({
+        userId: z.string(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       try {
         console.log(`👤 Retrieving roadmaps for user: ${input.userId}`);
-        
+
         // First get user details
         const profile = await db.profile.findUnique({
           where: { id: input.userId },
@@ -1015,57 +1138,59 @@ export const roadmapRouter = createTRPCRouter({
             username: true,
             full_name: true,
             avatar_url: true,
-          }
+          },
         });
 
         if (!profile) {
-            throw new Error("User not found");
+          throw new Error("User not found");
         }
 
         const roadmaps = await db.roadmap.findMany({
           where: {
             profileId: input.userId,
-            isPublic: true
+            isPublic: true,
           },
           include: {
             topics: {
-              select: { id: true }
+              select: { id: true },
             },
             profile: {
-                select: {
-                    id: true,
-                    username: true,
-                    full_name: true,
-                    avatar_url: true,
-                }
+              select: {
+                id: true,
+                username: true,
+                full_name: true,
+                avatar_url: true,
+              },
             },
             _count: {
               select: {
-                upvotes: true
-              }
+                upvotes: true,
+              },
             },
-            upvotes: ctx.user?.id ? {
-                where: {
-                    profileId: ctx.user.id
-                },
-                select: {
-                    id: true
+            upvotes: ctx.user?.id
+              ? {
+                  where: {
+                    profileId: ctx.user.id,
+                  },
+                  select: {
+                    id: true,
+                  },
                 }
-            } : false
+              : false,
           },
           orderBy: {
             upvotes: {
-              _count: 'desc'
-            }
-          }
+              _count: "desc",
+            },
+          },
         });
-        
+
         console.log(`✅ Found ${roadmaps.length} roadmaps for user`);
-        
+
         return {
           success: true,
           profile,
-          data: roadmaps.map(roadmap => ({
+          data: roadmaps.map((roadmap) => ({
             id: roadmap.id,
             title: roadmap.title,
             description: roadmap.description,
@@ -1074,17 +1199,18 @@ export const roadmapRouter = createTRPCRouter({
             updatedAt: roadmap.updatedAt,
             topicCount: roadmap.topics.length,
             creator: {
-                ...roadmap.profile,
-                name: roadmap.profile?.username ?? 'Anonymous'
+              ...roadmap.profile,
+              name: roadmap.profile?.username ?? "Anonymous",
             },
             upvoteCount: roadmap._count.upvotes,
-            isUpvoted: roadmap.upvotes ? roadmap.upvotes.length > 0 : false
-          }))
+            isUpvoted: roadmap.upvotes ? roadmap.upvotes.length > 0 : false,
+          })),
         };
-        
       } catch (error) {
         console.error("❌ Error retrieving user roadmaps:", error);
-        throw new Error(`Failed to retrieve user roadmaps: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to retrieve user roadmaps: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
 });
