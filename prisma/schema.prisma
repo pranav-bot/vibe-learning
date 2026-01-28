@@ -155,6 +155,7 @@ model Upvote {
     roadmap   Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
 
     @@unique([profileId, roadmapId])
+    @@index([roadmapId, profileId])
     @@map("upvotes")
 }
 

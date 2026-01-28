@@ -6,6 +6,7 @@ import { generateProjectsForRoadmap, type Project } from "~/course-builder-ai/pr
 import llms from "~/lib/llms";
 import { db } from "~/server/db";
 import { createId } from "@paralleldrive/cuid2";
+import { Prisma } from "@prisma/client";
 
 export const roadmapRouter = createTRPCRouter({
   generate: protectedProcedure
@@ -39,7 +40,7 @@ export const roadmapRouter = createTRPCRouter({
           throw new Error("Insufficient credits. Please purchase more credits or wait for refill.");
         }
         
-        // Try with gemini-2.0-flash first, then fallback to other models if needed
+        // Try with gemini-2.5-flash first, then fallback to other models if needed
         let roadmap;
         try {
           const roadmapPromise = generateRoadmap(
@@ -54,7 +55,7 @@ export const roadmapRouter = createTRPCRouter({
           
           roadmap = await Promise.race([roadmapPromise, timeoutPromise]) as Awaited<typeof roadmapPromise>;
         } catch (geminiError) {
-          console.warn("⚠️ Gemini 2.0 model failed, trying fallback...", geminiError);
+          console.warn("⚠️ Gemini 2.5-flash model failed, trying fallback...", geminiError);
           
           // Fallback to gemini-2.5-flash
           try {
@@ -865,7 +866,7 @@ export const roadmapRouter = createTRPCRouter({
       }
     }),
 
-  toggleUpvote: publicProcedure
+  toggleUpvote: protectedProcedure
     .input(z.object({
       roadmapId: z.string()
     }))
@@ -878,6 +879,14 @@ export const roadmapRouter = createTRPCRouter({
         const userId = ctx.user.id;
         const roadmapId = input.roadmapId;
 
+        const roadmap = await db.roadmap.findUnique({
+          where: { id: roadmapId }
+        });
+
+        if (!roadmap) {
+          throw new Error("Roadmap not found");
+        }
+
         // Check if user already upvoted
         const existingUpvote = await db.upvote.findUnique({
           where: {
@@ -888,25 +897,29 @@ export const roadmapRouter = createTRPCRouter({
           }
         });
 
-        if (existingUpvote) {
-          // Remove upvote
-          await db.upvote.delete({
-            where: {
-              id: existingUpvote.id
-            }
-          });
-          return { success: true, upvoted: false };
-        } else {
-          // Add upvote
+        try {
           await db.upvote.create({
             data: {
               profileId: userId,
               roadmapId: roadmapId
-            }
+            },
           });
           return { success: true, upvoted: true };
-        }
 
+        } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            await db.upvote.delete({
+              where: {
+                profileId_roadmapId: {
+                  profileId: userId,
+                  roadmapId: roadmapId
+                }
+              }
+            });
+            return { success: true, upvoted: false };
+          }
+          throw error;
+        }
       } catch (error) {
         console.error("❌ Error toggling upvote:", error);
         throw new Error(`Failed to toggle upvote: ${error instanceof Error ? error.message : String(error)}`);
