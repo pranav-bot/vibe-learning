@@ -44,7 +44,7 @@ export default function ScrollHoverText({ compact = false }: { compact?: boolean
           backgroundImage: "linear-gradient(to right, #b6b6b6, #b6b6b6)",
           backgroundSize: "0% 100%",
           backgroundRepeat: "no-repeat",
-          color: "lightgrey",
+          color: "grey",
           WebkitBackgroundClip: "text",
           backgroundClip: "text",
         }}
@@ -73,7 +73,7 @@ export default function ScrollHoverText({ compact = false }: { compact?: boolean
           backgroundImage: "linear-gradient(to right, #b6b6b6, #b6b6b6)",
           backgroundSize: "0% 100%",
           backgroundRepeat: "no-repeat",
-          color: "whiteSmoke",
+          color: "lightgrey",
           WebkitBackgroundClip: "text",
           backgroundClip: "text",
         }}
