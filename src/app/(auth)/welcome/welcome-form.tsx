@@ -99,7 +99,11 @@ export function WelcomeForm() {
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             className="resize-none"
+            maxLength={255}
         />
+        <div className="text-xs text-muted-foreground text-right">
+          {bio.length}/255
+        </div>
       </div>
 
       <SubmitButton disabled={isAvailable === false || username.length < 3 || isChecking} />

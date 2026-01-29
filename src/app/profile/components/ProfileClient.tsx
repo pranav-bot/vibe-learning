@@ -99,7 +99,9 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
       data.append('bio', formData.bio);
 
       await updateProfile(data);
-      toast.success("Profile updated successfully");
+      toast.success("Profile updated successfully", {
+        className: "bg-green-500 text-white border-green-600",
+      });
     } catch (error) {
       console.error(error);
       toast.error("Failed to update profile");
@@ -249,7 +251,11 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
                 className="mt-2 resize-none"
                 value={formData.bio}
                 onChange={handleChange}
+                maxLength={255}
               />
+              <div className="text-xs text-muted-foreground text-right mt-1">
+                {formData.bio.length}/255
+              </div>
             </div>
             </div>
 

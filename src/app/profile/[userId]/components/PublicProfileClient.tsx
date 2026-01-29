@@ -90,7 +90,7 @@ export default function PublicProfileClient({ userId, user }: PublicProfileClien
             </Avatar>
             <h1 className="text-3xl font-bold">{displayName}</h1>
             {profile.bio && (
-                  <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                  <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
                       {profile.bio}
                   </p>
             )}
