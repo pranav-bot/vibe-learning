@@ -89,6 +89,11 @@ export default function PublicProfileClient({ userId, user }: PublicProfileClien
                 </AvatarFallback>
             </Avatar>
             <h1 className="text-3xl font-bold">{displayName}</h1>
+            {profile.bio && (
+                  <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                      {profile.bio}
+                  </p>
+            )}
             <p className="text-muted-foreground mt-2">
                 {roadmaps.length} Public Roadmap{roadmaps.length !== 1 ? 's' : ''}
             </p>

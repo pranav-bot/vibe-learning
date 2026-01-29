@@ -27,6 +27,7 @@ model Profile {
     email      String?   @unique
     username   String?   @unique
     avatar_url String?
+    bio       String?
     
     credits    Int       @default(5)
 

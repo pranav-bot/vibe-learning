@@ -6,6 +6,7 @@ import { checkUsernameAvailability, updateUsername } from "~/lib/auth-actions";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
 import { Loader2, Check, X } from "lucide-react";
 
 function SubmitButton({ disabled }: { disabled: boolean }) {
@@ -21,6 +22,7 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
 
 export function WelcomeForm() {
   const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [minCharsReached, setMinCharsReached] = useState(false);
@@ -87,6 +89,19 @@ export function WelcomeForm() {
             <p className="text-sm text-muted-foreground">Must be at least 3 characters</p>
         )}
       </div>
+      
+      <div className="grid gap-2">
+        <Label htmlFor="bio">Bio (Optional)</Label>
+        <Textarea
+            id="bio"
+            name="bio"
+            placeholder="Tell us a little bit about yourself..."
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            className="resize-none"
+        />
+      </div>
+
       <SubmitButton disabled={isAvailable === false || username.length < 3 || isChecking} />
     </form>
   );

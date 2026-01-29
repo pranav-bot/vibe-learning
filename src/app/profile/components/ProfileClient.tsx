@@ -5,6 +5,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Loader2, User as UserIcon, Upload } from "lucide-react";
 import { updateProfile } from "~/lib/auth-actions";
@@ -38,13 +39,15 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
     full_name: string;
     avatar_url: string;
     email: string;
+    bio: string;
   }>({
     full_name: initialName,
     avatar_url: initialAvatar,
     email: user.email ?? '',
+    bio: profile?.bio ?? '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
@@ -93,6 +96,7 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
       const data = new FormData();
       data.append('full_name', formData.full_name);
       data.append('avatar_url', formData.avatar_url);
+      data.append('bio', formData.bio);
 
       await updateProfile(data);
       toast.success("Profile updated successfully");
@@ -235,6 +239,18 @@ export function ProfileClient({ user, profile }: ProfileClientProps) {
                   onChange={handleChange}
                 />
               </div>
+
+              <div>
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                name="bio"
+                placeholder="Tell us a little about yourself"
+                className="mt-2 resize-none"
+                value={formData.bio}
+                onChange={handleChange}
+              />
+            </div>
             </div>
 
             <div className="flex justify-end">

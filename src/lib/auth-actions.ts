@@ -67,6 +67,8 @@ export async function updateUsername(formData: FormData) {
   }
 
   const username = formData.get("username") as string;
+  const bio = formData.get("bio") as string | null;
+
   // simple validation
   if (!username || username.length < 3) {
       throw new Error("Username must be at least 3 characters");
@@ -84,7 +86,10 @@ export async function updateUsername(formData: FormData) {
 
     await db.profile.update({
       where: { id: user.id },
-      data: { username },
+      data: { 
+        username,
+        bio
+      },
     });
 
   } catch (error) {
@@ -185,6 +190,7 @@ export async function updateProfile(formData: FormData) {
 
   const fullName = formData.get("full_name") as string;
   const avatarUrl = formData.get("avatar_url") as string;
+  const bio = formData.get("bio") as string;
 
   try {
     await db.profile.update({
@@ -192,6 +198,7 @@ export async function updateProfile(formData: FormData) {
       data: {
         full_name: fullName,
         avatar_url: avatarUrl,
+        bio
       },
     });
     
