@@ -51,6 +51,8 @@ model Roadmap {
     // Foreign key to profile
     profileId   String?  @db.Uuid
     profile     Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+    rewardGranted    Boolean  @default(false)
     
     // Relations
     topics      Topic[]

@@ -29,7 +29,7 @@ const ProductCard = ({
         <CardTitle className="text-center">{title}</CardTitle>
         <CardDescription className="text-center">{description}</CardDescription>
 
-        <CardFooter>
+        <CardFooter className="justify-center">
           <Button onClick={onPayClick} className="w-56">
             Pay
           </Button>

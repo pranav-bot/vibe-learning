@@ -8,7 +8,6 @@ import { generateRoadmap } from "~/course-builder-ai/roadmap";
 import { youtubeResources } from "~/course-builder-ai/resources";
 import {
   generateProjectsForRoadmap,
-  type Project,
 } from "~/course-builder-ai/projects";
 import llms from "~/lib/llms";
 import { db } from "~/server/db";
@@ -34,16 +33,14 @@ export const roadmapRouter = createTRPCRouter({
           select: { credits: true },
         });
 
-        if (!profile) {
-          // Create profile if it doesn't exist
-          profile = await ctx.db.profile.create({
+        // Create profile if it doesn't exist
+profile ??= await ctx.db.profile.create({
             data: {
               id: ctx.user.id,
               email: ctx.user.email,
             },
             select: { credits: true },
           });
-        }
 
         if (profile.credits < 1) {
           throw new Error(
@@ -249,7 +246,7 @@ export const roadmapRouter = createTRPCRouter({
                 title: topic.title,
                 summary: topic.summary,
                 level: topic.level,
-                parentId: topic.parentId || null,
+                parentId: topic.parentId ?? null,
               })),
             },
           },
@@ -686,6 +683,7 @@ export const roadmapRouter = createTRPCRouter({
             | "beginner"
             | "intermediate"
             | "advanced",
+          isPublic: roadmap.isPublic,
           rootTopics: roadmap.topics
             .filter((topic) => topic.parentId === null)
             .map((topic) => topic.id),
@@ -1004,10 +1002,37 @@ export const roadmapRouter = createTRPCRouter({
               data: { profileId: userId, roadmapId },
             });
 
-            await tx.roadmap.update({
+            const roadmap = await tx.roadmap.update({
               where: { id: roadmapId },
               data: { upvotesCount: { increment: 1 } },
             });
+            if (
+              roadmap.upvotesCount >= 50 &&
+              !roadmap.rewardGranted &&
+              roadmap.profileId
+            ) {
+              const updated = await tx.roadmap.updateMany({
+                where: { id: roadmapId, rewardGranted: false },
+                data: { rewardGranted: true },
+              });
+              if (updated.count == 1){
+                await tx.profile.update({
+                  where: { id: roadmap.profileId },
+                  data: { credits: { increment: 1 } },
+                });
+
+                await tx.creditTransaction.create({
+                  data: {
+                    profileId: roadmap.profileId,
+                    roadmapId: roadmap.id,
+                    amount: 1,
+                    type: "ADMIN_ADJUSTMENT",
+                    description: `Reward for reaching ${roadmap.upvotesCount} upvotes on roadmap: ${roadmap.title}`,
+                  },
+                });
+
+              } 
+            }
           });
           return { success: true, upvoted: true };
         } catch (error) {

@@ -65,6 +65,10 @@ export default function LibraryClient() {
              </Button>
           </div>
 
+          <p className="text-center text-muted-foreground mb-8">
+            Make your existing roadmaps public and earn credits if they reach 50 upvotes
+          </p>
+
           {/* Previously Generated Roadmaps */}
           {userRoadmapsQuery.data?.data && userRoadmapsQuery.data.data.length > 0 ? (
             <div>

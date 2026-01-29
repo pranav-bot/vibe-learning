@@ -130,7 +130,7 @@ const ProductsList = ({ trigger, user }: { trigger?: React.ReactNode; user?: Use
   return (
     <Dialog onOpenChange={(open) => { if (!open) { setStep(1); setSelectedProduct(null); } }}>
       <DialogTrigger asChild>
-        {trigger ?? <Button>Buy Credits</Button>}
+        {trigger ?? <Button>Add Credits</Button>}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -138,6 +138,12 @@ const ProductsList = ({ trigger, user }: { trigger?: React.ReactNode; user?: Use
             {step === 1 ? "Upgrade Plan" : "Billing Details"}
           </DialogTitle>
         </DialogHeader>
+
+        {step === 1 && (
+          <p className="text-center text-sm text-muted-foreground px-2">
+            Make your existing roadmaps public and earn credits if they reach 50 upvotes.
+          </p>
+        )}
         
         {step === 1 ? (
           <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto p-1">

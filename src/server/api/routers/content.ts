@@ -7,7 +7,7 @@ import { generateTopicComparison } from "~/commands-ai/compare";
 import llms from "~/lib/llms";
 
 // Backend URL for server-side requests
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000';
 
 // Define the input structure that matches the Python backend response
 const ContentInput = z.object({
