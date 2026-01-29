@@ -1163,6 +1163,7 @@ profile ??= await ctx.db.profile.create({
             username: true,
             full_name: true,
             avatar_url: true,
+            bio: true,
           },
         });
 

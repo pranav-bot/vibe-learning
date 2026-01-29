@@ -5,6 +5,7 @@ import { Geist } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { ThemeProvider } from "~/components/theme-provider";
+import { Toaster } from "~/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "Knowful",
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className="bg-background text-foreground">
         <ThemeProvider defaultTheme="system" storageKey="vibe-learning-ui-theme">
           <TRPCReactProvider>{children}</TRPCReactProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
